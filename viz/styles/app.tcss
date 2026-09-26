@@ -1,14 +1,14 @@
-/* Viz Terminal Media Player - Retro Hacker/VCR Orange Theme Stylesheet */
+/* Viz Terminal Media Center - Retro Hacker/VCR Orange Theme Stylesheet */
 
 Screen {
     background: #0c0905;
     color: #ffccaa;
 }
 
-/* Header ASCII Component */
+/* Header Component */
 HeaderWidget {
     align: center top;
-    height: 6;
+    height: 7;
     margin-top: 1;
     margin-bottom: 0;
 }
@@ -20,6 +20,14 @@ HeaderWidget {
     height: 6;
 }
 
+#top-status-line {
+    text-align: center;
+    color: #ff9900;
+    text-style: bold;
+    height: 1;
+    background: #140d06;
+}
+
 /* Search Component */
 SearchWidget {
     align: center top;
@@ -29,7 +37,7 @@ SearchWidget {
 }
 
 #search-input {
-    width: 72;
+    width: 76;
     border: tall #ff8800;
     background: #140d06;
     color: #ff8800;
@@ -65,6 +73,13 @@ SearchWidget {
     margin-bottom: 1;
     padding-bottom: 0;
     border-bottom: heavy #ff8800;
+}
+
+/* Section Header in Sidebar */
+.section-header {
+    color: #cc6600;
+    text-style: bold;
+    padding-top: 1;
 }
 
 /* Categories List */
@@ -115,15 +130,7 @@ SearchWidget {
     text-style: bold;
 }
 
-/* Empty / Searching / Status Info Boxes */
-.status-info-box {
-    align: center middle;
-    text-align: center;
-    color: #ff9900;
-    padding: 2;
-}
-
-/* Player Status & Controls Bar */
+/* Player Status Bar */
 PlayerStatusWidget {
     height: 3;
     margin: 0 2;
@@ -142,7 +149,7 @@ PlayerStatusWidget {
 .bar-status {
     color: #ff8800;
     text-style: bold;
-    width: 14;
+    width: 16;
 }
 
 .bar-title {
@@ -158,7 +165,11 @@ PlayerStatusWidget {
     text-align: right;
 }
 
-/* Notification Banners */
+/* Contextual Footer */
+ContextualFooter {
+    height: 1;
+}
+
 #notification-bar {
     height: 1;
     color: #ff8800;
@@ -167,7 +178,6 @@ PlayerStatusWidget {
     background: #1a1005;
 }
 
-/* Footer Styling */
 Footer {
     background: #080503;
     color: #ff8800;
