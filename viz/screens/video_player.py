@@ -55,11 +55,21 @@ class VideoPlayerScreen(ModalScreen):
         if 0 <= self.current_index < len(self.queue_items):
             self.current_item = self.queue_items[self.current_index]
             if hasattr(self.app, "engine"):
-                self.app.engine.play(self.current_item)
+                resume_pos = 0.0
+                if hasattr(self.app, "history"):
+                    resume_pos = self.app.history.get_resume_position(self.current_item.path)
+                    if resume_pos > 0.0:
+                        formatted_time = PlayerStatusWidget.format_time(resume_pos)
+                        self.app.notify(f"Resuming at {formatted_time}", title="Resume Playback")
+                self.app.engine.play(self.current_item, start_position=resume_pos)
 
     def update_display(self) -> None:
         engine = getattr(self.app, "engine", None)
         state: PlaybackState = engine.state if engine else PlaybackState()
+
+        # Update history position periodically
+        if hasattr(self.app, "history") and state.position > 5.0 and state.status == PlaybackStatus.PLAYING:
+            self.app.history.update_position(self.current_item.path, state.position, state.duration)
 
         header = self.query_one("#video-header", Label)
         header.update(f"VIZ // VIDEO PLAYER  [{self.current_index + 1}/{len(self.queue_items)}]")
@@ -97,6 +107,7 @@ class VideoPlayerScreen(ModalScreen):
         filled = int(pct * bar_len)
         scrubber = "━" * filled + "●" + "─" * max(0, bar_len - filled - 1)
         progress_bar.update(f" {scrubber}")
+
 
     def action_toggle_play_pause(self) -> None:
         if hasattr(self.app, "engine"):

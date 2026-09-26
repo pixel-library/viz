@@ -53,14 +53,25 @@ class AudioPlayerScreen(ModalScreen):
         if 0 <= self.current_index < len(self.playlist):
             self.current_item = self.playlist[self.current_index]
             if hasattr(self.app, "engine"):
-                self.app.engine.play(self.current_item)
+                resume_pos = 0.0
+                if hasattr(self.app, "history"):
+                    resume_pos = self.app.history.get_resume_position(self.current_item.path)
+                    if resume_pos > 0.0:
+                        formatted_time = PlayerStatusWidget.format_time(resume_pos)
+                        self.app.notify(f"Resuming at {formatted_time}", title="Resume Playback")
+                self.app.engine.play(self.current_item, start_position=resume_pos)
 
     def update_display(self) -> None:
         engine = getattr(self.app, "engine", None)
         state: PlaybackState = engine.state if engine else PlaybackState()
 
+        # Update history position periodically
+        if hasattr(self.app, "history") and state.position > 5.0 and state.status == PlaybackStatus.PLAYING:
+            self.app.history.update_position(self.current_item.path, state.position, state.duration)
+
         header = self.query_one("#audio-header", Label)
         header.update(f"VIZ // AUDIO PLAYER  [{self.current_index + 1}/{len(self.playlist)}]")
+
 
         pos_str = PlayerStatusWidget.format_time(state.position)
         dur_str = PlayerStatusWidget.format_time(state.duration)

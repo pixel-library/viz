@@ -21,6 +21,7 @@ from viz.engine import MediaEngine
 from viz.folder_tree import FolderNode
 from viz.history import HistoryManager
 from viz.library import LibraryManager
+from viz.media_router import MediaRouter
 from viz.models import LoopMode, MediaItem, MediaType, PlaybackState, PlaybackStatus
 from viz.mounts import MountsManager
 from viz.queue import PlaybackQueue
@@ -289,32 +290,9 @@ class VizApp(App):
             pass
 
     def play_media_item(self, item: MediaItem) -> None:
-        """Play target MediaItem or launch Virtual Screen."""
-        if item.media_type == MediaType.IMAGE:
-            folder_imgs = [m for m in (self.selected_folder.media_files if self.selected_folder else self.library.images) if m.media_type == MediaType.IMAGE]
-            self.push_screen(ImageViewerScreen(item, folder_imgs))
-            return
-        elif item.media_type == MediaType.VIDEO:
-            folder_vids = [m for m in (self.selected_folder.media_files if self.selected_folder else self.library.videos) if m.media_type == MediaType.VIDEO]
-            self.push_screen(VideoPlayerScreen(item, folder_vids))
-            return
-        elif item.media_type == MediaType.AUDIO:
-            folder_auds = [m for m in (self.selected_folder.media_files if self.selected_folder else self.library.audio) if m.media_type == MediaType.AUDIO]
-            self.push_screen(AudioPlayerScreen(item, folder_auds))
-            return
+        """Play target MediaItem or launch Virtual Environment via MediaRouter."""
+        MediaRouter.open_media(self, item)
 
-        resume_pos = self.history.get_resume_position(item.path)
-        if resume_pos > 0.0:
-            formatted_time = PlayerStatusWidget.format_time(resume_pos)
-            self.notify(f"Resuming at {formatted_time}", title="Resume Playback")
-
-        self.queue.set_current(item)
-        success = self.engine.play(item, start_position=resume_pos)
-        if success:
-            self.notify(f"Playing: {item.name}", title="Viz Media Engine")
-        else:
-            err = self.engine.state.error_message or "Playback failed"
-            self.notify(err, title="Playback Error", severity="error")
 
 
     def on_engine_state_changed(self, state: PlaybackState) -> None:
