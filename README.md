@@ -59,6 +59,40 @@ python main.py
 
 ---
 
+## 🔄 Updating & Uninstalling
+
+### How to Update Viz to the Latest Version
+
+If you installed Viz via git clone, pull the latest changes and upgrade the package:
+
+```bash
+cd viz
+git pull origin main
+pip install --upgrade .
+```
+
+Or update directly from GitHub:
+
+```bash
+pip install --upgrade git+https://github.com/pixel-library/viz.git
+```
+
+### How to Uninstall Viz
+
+To remove Viz from your system:
+
+```bash
+pip uninstall viz-player
+```
+
+*(Optional)* To clear all saved configuration, themes, and favorites data:
+
+```bash
+rm -rf ~/.config/viz
+```
+
+---
+
 ## ⌨️ Complete Keybinding Reference
 
 | Key | Description |
