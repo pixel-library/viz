@@ -41,10 +41,15 @@ class MediaRouter:
             item = item_or_path
 
         if item.media_type == MediaType.IMAGE:
-            folder_imgs = context_queue or cls._get_folder_media(app, MediaType.IMAGE)
-            if item not in folder_imgs:
-                folder_imgs.insert(0, item)
-            app.push_screen(ImageViewerScreen(item, folder_imgs))
+            from viz.images import ImageHelper
+            if hasattr(app, "last_selected_item"):
+                app.last_selected_item = item
+
+            if hasattr(app, "engine") and app.engine:
+                if app.engine.play_image(item):
+                    return
+
+            ImageHelper.open_native_viewer(item.path)
 
         elif item.media_type == MediaType.VIDEO:
             folder_vids = context_queue or cls._get_folder_media(app, MediaType.VIDEO)

@@ -16,19 +16,18 @@ Screen {
 
 HeaderWidget {
     align: center top;
-    height: 1;
+    height: 8;
     margin: 0;
     padding: 0;
-    background: #FF8800;
-    color: #FFFFFF;
+    background: #FFFDF8;
+    color: #FF8800;
 }
 
 #top-status-line {
     text-align: center;
-    color: #FFFFFF;
-    text-style: bold;
-    height: 1;
-    background: #FF8800;
+    color: #FF8800;
+    height: 8;
+    background: #FFFDF8;
     width: 100%;
 }
 

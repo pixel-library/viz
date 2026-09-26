@@ -1,6 +1,5 @@
 """
-Header Widget displaying professional VIZ branding and system status.
-Uses a compact but distinctive single-line design with the VIZ identity.
+Header Widget displaying the original VIZ ASCII logo and system capability status.
 """
 
 from __future__ import annotations
@@ -13,8 +12,16 @@ from viz.constants import __version__
 from viz.terminal import TerminalCapabilities
 
 
+VIZ_ASCII_LOGO = """██╗   ██╗██╗███████╗
+██║   ██║██║╚══███╔╝
+██║   ██║██║  ███╔╝ 
+╚██╗ ██╔╝██║ ███╔╝  
+ ╚████╔╝ ██║███████╗
+  ╚═══╝  ╚═╝╚══════╝"""
+
+
 class HeaderWidget(Widget):
-    """Compact Professional Header with VIZ branding and capability indicator."""
+    """Header Widget featuring the original VIZ ASCII logo and capability status."""
 
     def compose(self) -> ComposeResult:
         caps = []
@@ -26,20 +33,30 @@ class HeaderWidget(Widget):
             caps.append("24BIT")
         cap_str = " | ".join(caps) if caps else "BASIC"
 
-        yield Label(
-            f"  ◆ VIZ  //  OFFLINE MEDIA TERMINAL  v{__version__}                    {cap_str}  ●  READY",
-            id="top-status-line",
+        header_text = (
+            f"[bold orange]{VIZ_ASCII_LOGO}[/bold orange]\n"
+            f"[bold #CC6600]OFFLINE MEDIA TERMINAL v{__version__}[/bold #CC6600]   "
+            f"[bold #888888]|[/bold #888888]   [bold orange]{cap_str}[/bold orange]  ●  [bold green]READY[/bold green]"
         )
+        yield Label(header_text, id="top-status-line")
 
     def set_status(self, status_str: str) -> None:
-        lbl = self.query_one("#top-status-line", Label)
-        caps = []
-        if TerminalCapabilities.has_display():
-            caps.append("GPU")
-        if TerminalCapabilities.has_kitty_graphics():
-            caps.append("KITTY")
-        if TerminalCapabilities.has_truecolor():
-            caps.append("24BIT")
-        cap_str = " | ".join(caps) if caps else "BASIC"
+        try:
+            lbl = self.query_one("#top-status-line", Label)
+            caps = []
+            if TerminalCapabilities.has_display():
+                caps.append("GPU")
+            if TerminalCapabilities.has_kitty_graphics():
+                caps.append("KITTY")
+            if TerminalCapabilities.has_truecolor():
+                caps.append("24BIT")
+            cap_str = " | ".join(caps) if caps else "BASIC"
 
-        lbl.update(f"  ◆ VIZ  //  OFFLINE MEDIA TERMINAL  v{__version__}                    {cap_str}  ●  {status_str.upper()}")
+            header_text = (
+                f"[bold orange]{VIZ_ASCII_LOGO}[/bold orange]\n"
+                f"[bold #CC6600]OFFLINE MEDIA TERMINAL v{__version__}[/bold #CC6600]   "
+                f"[bold #888888]|[/bold #888888]   [bold orange]{cap_str}[/bold orange]  ●  [bold green]{status_str.upper()}[/bold green]"
+            )
+            lbl.update(header_text)
+        except Exception:
+            pass
