@@ -1,11 +1,13 @@
-/* Viz Terminal Media Center - Retro Orange + White Professional Stylesheet */
+/* Viz Terminal Media Center — Professional Orange + White Theme Stylesheet */
+/* Professional, keyboard-first design with Orange (#FF8800) accent palette */
 
 Screen {
     background: #FFFDF8;
     color: #1A1A1A;
 }
 
-/* Header Component */
+/* ═══════════════════════════════════════ HEADER ═══════════════════════════════════════ */
+
 HeaderWidget {
     align: center top;
     height: 1;
@@ -21,9 +23,11 @@ HeaderWidget {
     text-style: bold;
     height: 1;
     background: #FF8800;
+    width: 100%;
 }
 
-/* Main Navigation Box */
+/* ═══════════════════════════════════════ MAIN LAYOUT ═══════════════════════════════════ */
+
 .main-box {
     border: round #FF8800;
     height: 1fr;
@@ -61,7 +65,8 @@ HeaderWidget {
     border-bottom: heavy #FF8800;
 }
 
-/* Tree Widget Styling */
+/* ═══════════════════════════════════════ FILESYSTEM TREE ═══════════════════════════════ */
+
 #folder-tree {
     height: 1fr;
     min-height: 8;
@@ -80,7 +85,13 @@ HeaderWidget {
     text-style: bold;
 }
 
-/* Section Header in Sidebar */
+#folder-tree > .tree--highlight {
+    background: #FFF5E8;
+    color: #FF8800;
+}
+
+/* ═══════════════════════════════════════ SIDEBAR SECTIONS ══════════════════════════════ */
+
 .section-header {
     color: #CC6600;
     text-style: bold;
@@ -88,7 +99,6 @@ HeaderWidget {
     margin-bottom: 0;
 }
 
-/* Sidebar Lists */
 #storage-list, #personal-views-list, #system-list {
     height: auto;
     max-height: 5;
@@ -113,7 +123,8 @@ HeaderWidget {
     text-style: bold;
 }
 
-/* Dynamic Media List (Middle Column) */
+/* ═══════════════════════════════════════ MEDIA LIST ════════════════════════════════════ */
+
 #media-list {
     height: 1fr;
     border: none;
@@ -137,13 +148,15 @@ HeaderWidget {
     text-style: bold;
 }
 
-/* Details Panel (Right Column) */
+/* ═══════════════════════════════════════ DETAILS PANEL ═════════════════════════════════ */
+
 #details-body {
     padding: 1;
     color: #1A1A1A;
 }
 
-/* Virtual Image Viewer Screen */
+/* ═══════════════════════════════════════ IMAGE VIEWER ══════════════════════════════════ */
+
 #image-screen-container {
     width: 100%;
     height: 100%;
@@ -159,6 +172,7 @@ HeaderWidget {
     background: #FFFDF8;
     border: double #FF8800;
     margin-bottom: 0;
+    overflow-y: auto;
 }
 
 #image-meta-body {
@@ -169,7 +183,8 @@ HeaderWidget {
     border-top: solid #FF8800;
 }
 
-/* Virtual Video Player Screen */
+/* ═══════════════════════════════════════ VIDEO PLAYER ══════════════════════════════════ */
+
 #video-screen-container {
     width: 100%;
     height: 100%;
@@ -200,7 +215,8 @@ HeaderWidget {
     text-style: bold;
 }
 
-/* Virtual Audio Player Screen */
+/* ═══════════════════════════════════════ AUDIO PLAYER ══════════════════════════════════ */
+
 #audio-screen-container {
     width: 100%;
     height: 100%;
@@ -225,7 +241,8 @@ HeaderWidget {
     text-align: center;
 }
 
-/* Modal Dialog Screens */
+/* ═══════════════════════════════════════ MODAL DIALOGS ═════════════════════════════════ */
+
 .modal-dialog {
     width: 60;
     height: auto;
@@ -251,7 +268,8 @@ HeaderWidget {
     margin-top: 1;
 }
 
-/* Player Status Bar */
+/* ═══════════════════════════════════════ PLAYER STATUS ═════════════════════════════════ */
+
 PlayerStatusWidget {
     height: 3;
     margin: 0 1;
@@ -286,7 +304,8 @@ PlayerStatusWidget {
     text-align: right;
 }
 
-/* Contextual Footer */
+/* ═══════════════════════════════════════ FOOTER ════════════════════════════════════════ */
+
 ContextualFooter {
     height: 1;
 }

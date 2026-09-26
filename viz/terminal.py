@@ -1,14 +1,113 @@
 """
-Terminal State Manager for Viz Media Center.
-Hides text cursor on startup and ensures clean cursor/terminal restoration on exit or crash.
+Terminal State Manager & Graphics Capability Detection for Viz Media Center.
+Detects Kitty Graphics Protocol, Sixel, native rendering tools, and truecolor support.
+Provides clean cursor management and emergency exit hooks.
 """
 
 from __future__ import annotations
 
 import atexit
+import os
+import shutil
 import signal
 import sys
-from typing import Any
+from pathlib import Path
+from typing import Any, Optional
+
+
+class TerminalCapabilities:
+    """Cached terminal graphics capability detection results."""
+
+    _detected: bool = False
+    _kitty_graphics: bool = False
+    _sixel: bool = False
+    _truecolor: bool = False
+    _timg_path: Optional[str] = None
+    _chafa_path: Optional[str] = None
+    _kitty_icat_path: Optional[str] = None
+    _display_available: bool = False
+
+    @classmethod
+    def detect(cls) -> None:
+        """Run full capability detection once, cache results."""
+        if cls._detected:
+            return
+
+        # Kitty Graphics Protocol detection
+        kitty_id = os.getenv("KITTY_WINDOW_ID", "")
+        term = os.getenv("TERM", "").lower()
+        term_prog = os.getenv("TERM_PROGRAM", "").lower()
+        cls._kitty_graphics = bool(kitty_id) or "kitty" in term or "kitty" in term_prog
+
+        # Sixel detection
+        cls._sixel = term_prog in ("foot", "mlterm", "yaft", "wezterm", "contour") or "sixel" in term
+
+        # Truecolor detection
+        colorterm = os.getenv("COLORTERM", "").lower()
+        cls._truecolor = colorterm in ("truecolor", "24bit") or cls._kitty_graphics
+
+        # Display server availability (needed for native MPV window)
+        cls._display_available = bool(os.getenv("DISPLAY") or os.getenv("WAYLAND_DISPLAY"))
+
+        # Discover native image rendering tools
+        cls._timg_path = shutil.which("timg")
+        cls._chafa_path = shutil.which("chafa")
+        kitty_bin = shutil.which("kitty")
+        if kitty_bin:
+            icat_path = Path(kitty_bin).parent / "kitten"
+            if icat_path.exists():
+                cls._kitty_icat_path = str(icat_path)
+
+        cls._detected = True
+
+    @classmethod
+    def has_kitty_graphics(cls) -> bool:
+        cls.detect()
+        return cls._kitty_graphics
+
+    @classmethod
+    def has_sixel(cls) -> bool:
+        cls.detect()
+        return cls._sixel
+
+    @classmethod
+    def has_truecolor(cls) -> bool:
+        cls.detect()
+        return cls._truecolor
+
+    @classmethod
+    def has_display(cls) -> bool:
+        cls.detect()
+        return cls._display_available
+
+    @classmethod
+    def get_timg_path(cls) -> Optional[str]:
+        cls.detect()
+        return cls._timg_path
+
+    @classmethod
+    def get_chafa_path(cls) -> Optional[str]:
+        cls.detect()
+        return cls._chafa_path
+
+    @classmethod
+    def best_image_method(cls) -> str:
+        """Return the best available image rendering method string.
+
+        Returns one of: 'kitty', 'sixel', 'timg', 'chafa', 'block', 'text'
+        """
+        cls.detect()
+        if cls._kitty_graphics:
+            return "kitty"
+        if cls._sixel:
+            return "sixel"
+        if cls._timg_path:
+            return "timg"
+        if cls._chafa_path:
+            return "chafa"
+        if cls._truecolor:
+            return "block"
+        return "text"
 
 
 class TerminalManager:
@@ -35,6 +134,8 @@ class TerminalManager:
         except Exception:
             pass
 
+        # Run capability detection at startup
+        TerminalCapabilities.detect()
         cls._initialized = True
 
     @staticmethod
@@ -55,24 +156,15 @@ class TerminalManager:
         except Exception:
             pass
 
+    # Backward-compatible static methods
     @staticmethod
     def supports_kitty_graphics() -> bool:
-        """Detect Kitty terminal graphics protocol support."""
-        import os
-        return bool(os.getenv("KITTY_WINDOW_ID") or "kitty" in os.getenv("TERM", "").lower())
+        return TerminalCapabilities.has_kitty_graphics()
 
     @staticmethod
     def supports_sixel() -> bool:
-        """Detect Sixel terminal graphics protocol support."""
-        import os
-        term = os.getenv("TERM", "").lower()
-        term_prog = os.getenv("TERM_PROGRAM", "").lower()
-        return "sixel" in term or term_prog in ("foot", "mlterm", "yaft", "wezterm")
+        return TerminalCapabilities.has_sixel()
 
     @staticmethod
     def supports_truecolor() -> bool:
-        """Detect Truecolor / 24-bit RGB rendering support."""
-        import os
-        colorterm = os.getenv("COLORTERM", "").lower()
-        return colorterm in ("truecolor", "24bit") or True  # Modern Linux terminals default to truecolor
-
+        return TerminalCapabilities.has_truecolor()

@@ -1,6 +1,11 @@
 """
 Dedicated Virtual Video Player Screen for Viz Media Center.
-Provides full-terminal video playback controls, progress scrubber, volume, and MPV state observer integration.
+
+Video playback uses the native MPV engine which opens a hardware-accelerated
+video window via libmpv. The terminal screen shows playback controls, progress
+scrubber, volume indicator, and navigation.
+
+Videos are NOT decoded in Python — MPV handles all rendering via GPU.
 """
 
 from __future__ import annotations
@@ -17,7 +22,7 @@ from viz.widgets.player_status import PlayerStatusWidget
 
 
 class VideoPlayerScreen(ModalScreen):
-    """Virtual Video Player screen with real MPV playback integration."""
+    """Virtual Video Player screen with real MPV native window playback."""
 
     BINDINGS = [
         Binding("escape", "dismiss_screen", "Back", show=True),
@@ -76,29 +81,38 @@ class VideoPlayerScreen(ModalScreen):
 
         display_body = self.query_one("#video-display-body", Label)
         item_name = self.current_item.name
-        res_str = f"{self.current_item.image_width}x{self.current_item.image_height}" if self.current_item.image_width > 0 else "1080p"
+        res_str = f"{self.current_item.image_width}x{self.current_item.image_height}" if self.current_item.image_width > 0 else ""
         ext_str = self.current_item.extension.upper().lstrip(".")
 
-        video_ascii_card = (
+        # Show native playback status card
+        status_icon = "▶" if state.status == PlaybackStatus.PLAYING else ("⏸" if state.status == PlaybackStatus.PAUSED else "■")
+
+        video_card = (
             "\n\n\n"
             "   ┌─────────────────────────────────────────────────────────────┐\n"
-            f"   │                ▶ PLAYING VIDEO: {item_name[:28]:<28} │\n"
+            f"   │     {status_icon} NOW PLAYING                                          │\n"
             "   │                                                             │\n"
-            f"   │                FORMAT: {ext_str:<8}   RES: {res_str:<12}       │\n"
+            f"   │     [bold orange]{item_name[:50]:<50}[/bold orange] │\n"
             "   │                                                             │\n"
-            "   │                [ MPV REAL-TIME ENGINE ACTIVE ]              │\n"
+            f"   │     FORMAT: {ext_str:<8}   {('RES: ' + res_str) if res_str else '':20}              │\n"
+            "   │                                                             │\n"
+            "   │     [ MPV Native Window — Hardware Accelerated ]            │\n"
+            "   │     Video is playing in the MPV window.                     │\n"
+            "   │     Use this panel for playback controls.                   │\n"
+            "   │                                                             │\n"
+            "   │     F — Toggle Fullscreen in MPV window                     │\n"
             "   └─────────────────────────────────────────────────────────────┘\n"
         )
-        display_body.update(video_ascii_card)
+        display_body.update(video_card)
 
         # Status Line
         status_bar = self.query_one("#video-status-bar", Label)
-        status_symbol = "▶" if state.status == PlaybackStatus.PLAYING else ("⏸" if state.status == PlaybackStatus.PAUSED else "■")
         pos_str = PlayerStatusWidget.format_time(state.position)
         dur_str = PlayerStatusWidget.format_time(state.duration)
-        vol_str = f"Muted" if state.is_muted else f"Volume {state.volume}%"
+        vol_str = "Muted" if state.is_muted else f"Volume {state.volume}%"
+        status_text = "▶ PLAYING" if state.status == PlaybackStatus.PLAYING else ("⏸ PAUSED" if state.status == PlaybackStatus.PAUSED else "■ STOPPED")
 
-        status_bar.update(f" {status_symbol} {pos_str} / {dur_str}                                     {vol_str}")
+        status_bar.update(f" {status_text}    {pos_str} / {dur_str}                                {vol_str}")
 
         # Progress Scrubber
         progress_bar = self.query_one("#video-progress-bar", Label)
@@ -107,7 +121,6 @@ class VideoPlayerScreen(ModalScreen):
         filled = int(pct * bar_len)
         scrubber = "━" * filled + "●" + "─" * max(0, bar_len - filled - 1)
         progress_bar.update(f" {scrubber}")
-
 
     def action_toggle_play_pause(self) -> None:
         if hasattr(self.app, "engine"):
@@ -158,4 +171,9 @@ class VideoPlayerScreen(ModalScreen):
                 pass
 
     def action_dismiss_screen(self) -> None:
+        # Save position before dismissing
+        if hasattr(self.app, "engine") and hasattr(self.app, "history"):
+            state = self.app.engine.state
+            if state.position > 5.0 and state.current_media:
+                self.app.history.update_position(state.current_media.path, state.position, state.duration)
         self.dismiss()

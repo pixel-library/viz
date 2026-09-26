@@ -1,14 +1,22 @@
 """
 Isolated Media Engine Abstraction for MPV / libmpv Integration.
 Handles player lifecycle, playback state, seeking, audio/video controls, and event mapping.
+
+Key architectural decisions:
+- Uses hwdec=auto for hardware-accelerated video decoding
+- Creates a separate MPV window for video playback (vo=gpu)
+- Audio-only playback uses vo=null to prevent window creation
+- Image viewing uses --image-display-duration=inf for proper display
 """
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from typing import Callable, Optional
 
-from viz.models import MediaItem, PlaybackState, PlaybackStatus
+from viz.models import MediaItem, MediaType, PlaybackState, PlaybackStatus
+from viz.terminal import TerminalCapabilities
 
 # Attempt to import python-mpv cleanly
 HAS_MPV = False
@@ -25,6 +33,10 @@ class MediaEngine:
     """
     Dedicated media engine encapsulating python-mpv native player.
     Keeps MPV backend logic completely decoupled from UI widgets.
+
+    Video: Opens in a native hardware-accelerated MPV window.
+    Audio: Plays audio-only without creating a window.
+    Images: Opened via separate MPV process with image display mode.
     """
 
     def __init__(self, initial_volume: int = 80, initial_muted: bool = False) -> None:
@@ -39,9 +51,10 @@ class MediaEngine:
                 self.player = mpv.MPV(
                     keep_open=True,
                     osc=True,
-                    title="Viz Media Window",
+                    title="Viz Media Player",
                     volume=initial_volume,
                     mute=initial_muted,
+                    hwdec="auto",
                 )
                 self.is_available = True
                 self._setup_event_observers()
@@ -96,7 +109,11 @@ class MediaEngine:
                 pass
 
     def play(self, media_item: MediaItem, start_position: float = 0.0) -> bool:
-        """Trigger playback for media item."""
+        """Trigger playback for media item.
+
+        For video files: Opens in native MPV window with hardware decoding.
+        For audio files: Plays audio-only without creating a window.
+        """
         if not self.is_available or not self.player:
             self.state.status = PlaybackStatus.ERROR
             self.state.error_message = self.error_message or "MPV engine unavailable"
@@ -108,6 +125,23 @@ class MediaEngine:
             self.state.status = PlaybackStatus.LOADING
             self.state.position = start_position
             self.state.duration = 0.0
+
+            # Configure video output based on media type
+            if media_item.media_type == MediaType.AUDIO:
+                # Audio-only: no video window
+                try:
+                    self.player.vo = "null"
+                except Exception:
+                    pass
+            else:
+                # Video: use hardware-accelerated rendering in native window
+                try:
+                    if TerminalCapabilities.has_display():
+                        self.player.vo = "gpu"
+                    else:
+                        self.player.vo = "null"
+                except Exception:
+                    pass
 
             if start_position > 0.0:
                 self.player.play(abs_path, start=f"{start_position}")
@@ -121,6 +155,39 @@ class MediaEngine:
             self.state.status = PlaybackStatus.ERROR
             self.state.error_message = f"Playback error: {err}"
             self._notify_state_change()
+            return False
+
+    def play_image(self, media_item: MediaItem) -> bool:
+        """Open image in a dedicated MPV process with native rendering.
+
+        This launches a separate MPV process specifically for image viewing,
+        using --image-display-duration=inf to keep the image displayed.
+        The image is rendered at full native resolution in its own window.
+        """
+        if not TerminalCapabilities.has_display():
+            return False
+
+        try:
+            abs_path = str(media_item.path.resolve())
+            subprocess.Popen(
+                [
+                    "mpv",
+                    "--image-display-duration=inf",
+                    "--force-window=yes",
+                    f"--title=Viz // {media_item.name}",
+                    "--no-terminal",
+                    "--keep-open=yes",
+                    "--loop-file=inf",
+                    "--hwdec=auto",
+                    abs_path,
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except FileNotFoundError:
+            return False
+        except Exception:
             return False
 
     def toggle_pause(self) -> bool:

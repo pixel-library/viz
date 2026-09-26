@@ -1,6 +1,9 @@
 """
 Dedicated Virtual Audio Player Screen for Viz Media Center.
-Provides full-terminal audio player controls, track metadata, waveform status, and MPV integration.
+
+Audio playback uses the MPV engine with vo=null (no video window).
+The terminal screen shows track metadata, a progress scrubber, volume control,
+and playlist navigation.
 """
 
 from __future__ import annotations
@@ -72,30 +75,38 @@ class AudioPlayerScreen(ModalScreen):
         header = self.query_one("#audio-header", Label)
         header.update(f"VIZ // AUDIO PLAYER  [{self.current_index + 1}/{len(self.playlist)}]")
 
-
         pos_str = PlayerStatusWidget.format_time(state.position)
         dur_str = PlayerStatusWidget.format_time(state.duration)
         pct = (state.position / max(1.0, state.duration)) if state.duration > 0 else 0.0
-        bar_len = 36
+        bar_len = 40
         filled = int(pct * bar_len)
         scrubber = "━" * filled + "●" + "─" * max(0, bar_len - filled - 1)
 
         artist_str = f"By {self.current_item.artist}" if self.current_item.artist else ""
         album_str = f"Album: {self.current_item.album}" if self.current_item.album else ""
-        status_text = "▶ PLAYING" if state.status == PlaybackStatus.PLAYING else ("⏸ PAUSED" if state.status == PlaybackStatus.PAUSED else "■ STOPPED")
+        ext_str = self.current_item.extension.upper().lstrip(".")
+        status_icon = "▶" if state.status == PlaybackStatus.PLAYING else ("⏸" if state.status == PlaybackStatus.PAUSED else "■")
+        status_text = "PLAYING" if state.status == PlaybackStatus.PLAYING else ("PAUSED" if state.status == PlaybackStatus.PAUSED else "STOPPED")
 
-        audio_ascii_card = (
+        audio_card = (
             "\n\n"
-            "                 [ AUDIO ]                \n\n"
-            f"          {self.current_item.title or self.current_item.name}          \n"
-            f"          {artist_str}  {album_str}          \n\n"
-            f"               {pos_str} / {dur_str}               \n"
-            f"       {scrubber}       \n\n"
-            f"               {status_text}               \n"
+            "   ┌─────────────────────────────────────────────────────────────┐\n"
+            "   │                                                             │\n"
+            f"   │     {status_icon} {status_text:<10}                                       │\n"
+            "   │                                                             │\n"
+            f"   │     [bold orange]{(self.current_item.title or self.current_item.name)[:50]:<50}[/bold orange] │\n"
+            f"   │     {artist_str[:56]:<56}  │\n"
+            f"   │     {album_str[:56]:<56}  │\n"
+            "   │                                                             │\n"
+            f"   │     {pos_str}  {scrubber}  {dur_str:>8} │\n"
+            "   │                                                             │\n"
+            f"   │     FORMAT: {ext_str:<8}   TRACK: {self.current_index + 1}/{len(self.playlist):<20} │\n"
+            "   │                                                             │\n"
+            "   └─────────────────────────────────────────────────────────────┘\n"
         )
 
         display_body = self.query_one("#audio-display-body", Label)
-        display_body.update(audio_ascii_card)
+        display_body.update(audio_card)
 
         info_footer = self.query_one("#audio-info-footer", Label)
         vol_str = "Muted" if state.is_muted else f"Volume {state.volume}%"
@@ -142,4 +153,9 @@ class AudioPlayerScreen(ModalScreen):
             self.start_playback()
 
     def action_dismiss_screen(self) -> None:
+        # Save position before dismissing
+        if hasattr(self.app, "engine") and hasattr(self.app, "history"):
+            state = self.app.engine.state
+            if state.position > 5.0 and state.current_media:
+                self.app.history.update_position(state.current_media.path, state.position, state.duration)
         self.dismiss()

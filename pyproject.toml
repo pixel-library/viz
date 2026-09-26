@@ -15,6 +15,7 @@ requires-python = ">=3.10"
 dependencies = [
     "textual>=0.40.0",
     "python-mpv>=1.0.0",
+    "Pillow>=10.0.0",
 ]
 keywords = ["tui", "terminal", "media-player", "mpv", "vcr", "hacker", "asyncio"]
 classifiers = [
