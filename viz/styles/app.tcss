@@ -49,7 +49,7 @@ SearchWidget {
     background: #1c1208;
 }
 
-/* Main Navigation Box (50/50 Layout) */
+/* Main Navigation Box (Three-Area Layout) */
 .main-box {
     border: round #ff8800;
     height: 1fr;
@@ -58,13 +58,22 @@ SearchWidget {
 }
 
 .column {
-    width: 1fr;
     height: 100%;
-    padding: 1 2;
+    padding: 1 1;
 }
 
 #left-column {
+    width: 34;
     border-right: solid #33200d;
+}
+
+#right-column {
+    width: 1fr;
+    border-right: solid #33200d;
+}
+
+#details-column {
+    width: 34;
 }
 
 .column-header {
@@ -75,38 +84,58 @@ SearchWidget {
     border-bottom: heavy #ff8800;
 }
 
-/* Section Header in Sidebar */
-.section-header {
-    color: #cc6600;
-    text-style: bold;
-    padding-top: 1;
-}
-
-/* Categories List */
-#category-list {
+/* Tree Widget Styling */
+#folder-tree {
     height: 1fr;
     border: none;
     background: transparent;
+    color: #ffccaa;
 }
 
-#category-list > ListItem {
-    padding: 0 1;
-    color: #d99966;
-    background: transparent;
+#folder-tree:focus {
+    border: none;
 }
 
-#category-list > ListItem:hover {
-    background: #241407;
-    color: #ff8800;
-}
-
-#category-list > ListItem.--highlight {
+#folder-tree > .tree--cursor {
     background: #ff8800;
     color: #000000;
     text-style: bold;
 }
 
-/* Dynamic Media List (Right Column) */
+/* Section Header in Sidebar */
+.section-header {
+    color: #cc6600;
+    text-style: bold;
+    padding-top: 1;
+    margin-bottom: 0;
+}
+
+/* Global & System Lists */
+#global-views-list, #system-list {
+    height: auto;
+    max-height: 12;
+    border: none;
+    background: transparent;
+}
+
+#global-views-list > ListItem, #system-list > ListItem {
+    padding: 0 1;
+    color: #d99966;
+    background: transparent;
+}
+
+#global-views-list > ListItem:hover, #system-list > ListItem:hover {
+    background: #241407;
+    color: #ff8800;
+}
+
+#global-views-list > ListItem.--highlight, #system-list > ListItem.--highlight {
+    background: #ff8800;
+    color: #000000;
+    text-style: bold;
+}
+
+/* Dynamic Media List (Middle Column) */
 #media-list {
     height: 1fr;
     border: none;
@@ -128,6 +157,56 @@ SearchWidget {
     background: #ff8800;
     color: #000000;
     text-style: bold;
+}
+
+/* Details Panel (Right Column) */
+#details-body {
+    padding: 1;
+    color: #ffccaa;
+}
+
+/* Modal Dialog Screens */
+.modal-dialog {
+    width: 60;
+    height: auto;
+    max-height: 32;
+    border: double #ff8800;
+    background: #140d06;
+    padding: 1 2;
+    align: center middle;
+}
+
+.dialog-header {
+    color: #ff8800;
+    text-style: bold;
+    text-align: center;
+    border-bottom: heavy #ff8800;
+    margin-bottom: 1;
+}
+
+.hint-label {
+    color: #d99966;
+    text-align: center;
+    margin-top: 1;
+}
+
+#image-dialog {
+    width: 68;
+    height: 28;
+}
+
+#image-ascii-body {
+    height: 15;
+    text-align: center;
+    color: #ff8800;
+    background: #090603;
+    border: solid #33200d;
+    margin-bottom: 1;
+}
+
+#image-meta-body {
+    height: 4;
+    text-align: center;
 }
 
 /* Player Status Bar */

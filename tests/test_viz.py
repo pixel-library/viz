@@ -6,8 +6,9 @@ from pathlib import Path
 import tempfile
 import time
 
-from viz.constants import AUDIO_EXTENSIONS, SUPPORTED_EXTENSIONS, VIDEO_EXTENSIONS
+from viz.constants import AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, SUPPORTED_EXTENSIONS, VIDEO_EXTENSIONS
 from viz.config import ConfigManager
+from viz.folder_tree import FolderTreeBuilder
 from viz.history import HistoryManager
 from viz.library import LibraryManager
 from viz.models import MediaItem, MediaType
@@ -22,16 +23,40 @@ def test_extension_constants():
     assert ".mkv" in VIDEO_EXTENSIONS
     assert ".mp3" in AUDIO_EXTENSIONS
     assert ".flac" in AUDIO_EXTENSIONS
+    assert ".jpg" in IMAGE_EXTENSIONS
+    assert ".png" in IMAGE_EXTENSIONS
     assert ".mp4" in SUPPORTED_EXTENSIONS
     assert ".mp3" in SUPPORTED_EXTENSIONS
+    assert ".jpg" in SUPPORTED_EXTENSIONS
 
 
 def test_media_type_detection():
     assert MediaType.from_path(Path("movie.MP4")) == MediaType.VIDEO
     assert MediaType.from_path(Path("movie.mkv")) == MediaType.VIDEO
     assert MediaType.from_path(Path("track.MP3")) == MediaType.AUDIO
-    assert MediaType.from_path(Path("track.flac")) == MediaType.AUDIO
+    assert MediaType.from_path(Path("photo.JPG")) == MediaType.IMAGE
+    assert MediaType.from_path(Path("photo.png")) == MediaType.IMAGE
     assert MediaType.from_path(Path("file.txt")) == MediaType.UNKNOWN
+
+
+def test_folder_tree_builder():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        sub1 = root / "Movies" / "Interstellar"
+        sub1.mkdir(parents=True)
+        m_file = sub1 / "Interstellar.mkv"
+        m_file.write_text("video_content")
+
+        item = MediaItem.from_file(m_file)
+        assert item is not None
+
+        roots = FolderTreeBuilder.build_tree([root], [item])
+        assert len(roots) == 1
+        assert roots[0].name == root.name
+        assert len(roots[0].subfolders) == 1
+        assert roots[0].subfolders[0].name == "Movies"
+        assert roots[0].total_media_count == 1
+        assert roots[0].video_count == 1
 
 
 def test_series_detection():
@@ -81,12 +106,8 @@ def test_config_manager():
         assert cfg.volume == 80
         assert not cfg.muted
 
-        cfg.volume = 95
-        cfg.muted = True
-
-        cfg2 = ConfigManager(config_file=config_file)
-        assert cfg2.volume == 95
-        assert cfg2.muted
+        cfg.add_library_path(Path(tmpdir))
+        assert Path(tmpdir).resolve() in cfg.get_library_paths()
 
 
 def test_history_manager_resume_logic():

@@ -174,6 +174,94 @@ class MediaListWidget(Widget):
             dur_str = PlayerStatusWidget.format_time(item.duration)
             list_view.append(ListItem(Label(f"{idx}. {item.ascii_icon} {item.name} ({dur_str})")))
 
+    def render_folder(self, folder: FolderNode, active_filter: str = "ALL") -> None:
+        """Render the contents of a real filesystem folder with subfolders first, then classified files."""
+        self._update_header(f"FOLDER: {folder.name.upper()} [FILTER: {active_filter}]", folder.total_media_count)
+        list_view = self.query_one("#media-list", ListView)
+        list_view.clear()
+
+        # Filter media files
+        filtered_files = folder.media_files
+        if active_filter == "VIDEOS":
+            filtered_files = [m for m in folder.media_files if m.media_type == MediaType.VIDEO]
+        elif active_filter == "AUDIO":
+            filtered_files = [m for m in folder.media_files if m.media_type == MediaType.AUDIO]
+        elif active_filter == "IMAGES":
+            filtered_files = [m for m in folder.media_files if m.media_type == MediaType.IMAGE]
+
+        if not folder.subfolders and not filtered_files:
+            list_view.append(ListItem(Label(f"[ FOLDER EMPTY ]\n\nNo matching media files in '{folder.name}'.")))
+            return
+
+        # 1. Subfolders
+        if folder.subfolders:
+            list_view.append(ListItem(Label("── SUBFOLDERS ──")))
+            for sf in folder.subfolders:
+                cnt_tag = f"[{sf.total_media_count}]" if sf.total_media_count > 0 else ""
+                list_view.append(ListItem(Label(f"📁 {sf.name} {cnt_tag}")))
+
+        # 2. Classified Media Files
+        if filtered_files:
+            videos = [m for m in filtered_files if m.media_type == MediaType.VIDEO]
+            audio = [m for m in filtered_files if m.media_type == MediaType.AUDIO]
+            images = [m for m in filtered_files if m.media_type == MediaType.IMAGE]
+
+            if videos:
+                list_view.append(ListItem(Label("── VIDEOS ──")))
+                for item in videos:
+                    dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else ""
+                    fav_str = " ★" if item.favorite else ""
+                    list_view.append(ListItem(Label(f"[V] {item.display_name}{fav_str} ({dur_str})")))
+
+            if audio:
+                list_view.append(ListItem(Label("── AUDIO ──")))
+                for item in audio:
+                    dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else ""
+                    artist_str = f" - {item.artist}" if item.artist else ""
+                    fav_str = " ★" if item.favorite else ""
+                    list_view.append(ListItem(Label(f"[♪] {item.title or item.display_name}{fav_str}{artist_str} ({dur_str})")))
+
+            if images:
+                list_view.append(ListItem(Label("── IMAGES ──")))
+                for item in images:
+                    dim_str = f" ({item.image_width}x{item.image_height})" if item.image_width > 0 else ""
+                    fav_str = " ★" if item.favorite else ""
+                    list_view.append(ListItem(Label(f"[IMG] {item.name}{fav_str}{dim_str}")))
+
+    def render_images(self, image_items: List[MediaItem]) -> None:
+        """Render Images view displaying image dimensions and file sizes."""
+        self._update_header("IMAGES", len(image_items))
+        list_view = self.query_one("#media-list", ListView)
+        list_view.clear()
+
+        if not image_items:
+            list_view.append(ListItem(Label("[ IMAGES ]\n\nNo image files found in library.")))
+            return
+
+        for item in image_items:
+            dim_str = f"{item.image_width}×{item.image_height}" if item.image_width > 0 else "Unknown"
+            size_mb = item.file_size / (1024 * 1024)
+            size_str = f"{size_mb:.1f} MB" if size_mb >= 1.0 else f"{int(item.file_size / 1024)} KB"
+            fav_str = " ★" if item.favorite else ""
+
+            text = f"[IMG] {item.name}{fav_str}\n      {dim_str} · {item.image_format or item.extension.upper()} · {size_str}"
+            list_view.append(ListItem(Label(text)))
+
+    def render_videos(self, video_items: List[MediaItem]) -> None:
+        """Render Videos view."""
+        self._update_header("VIDEOS", len(video_items))
+        list_view = self.query_one("#media-list", ListView)
+        list_view.clear()
+
+        if not video_items:
+            list_view.append(ListItem(Label("[ VIDEOS ]\n\nNo video files found in library.")))
+            return
+
+        for item in video_items:
+            dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else ""
+            fav_str = " ★" if item.favorite else ""
+            list_view.append(ListItem(Label(f"[V] {item.display_name}{fav_str} ({dur_str})")))
+
     def _update_header(self, title: str, count: int) -> None:
         header_label = self.query_one("#browse-header", Label)
         header_label.update(f"[ {title} ({count}) ]")

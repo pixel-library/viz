@@ -18,9 +18,12 @@ class ConfigManager:
     DEFAULT_CONFIG: Dict[str, Any] = {
         "version": 1,
         "media_path": str(Path.cwd() / "media"),
+        "library_paths": [],
         "volume": 80,
         "muted": False,
         "active_theme": "orange",
+        "show_hidden_files": False,
+        "sort_order": "name",
     }
 
     def __init__(self, config_file: Path = CONFIG_FILE) -> None:
@@ -28,6 +31,32 @@ class ConfigManager:
         self.config_dir = self.config_file.parent
         self.data: Dict[str, Any] = dict(self.DEFAULT_CONFIG)
         self.load()
+        self._ensure_library_paths()
+
+    def _ensure_library_paths(self) -> None:
+        """Discover existing user media directories on first run or if paths empty."""
+        paths = self.data.get("library_paths", [])
+        if not paths:
+            discovered = []
+            home = Path.home()
+            candidates = [
+                home / "Videos",
+                home / "Music",
+                home / "Pictures",
+                home / "Movies",
+                home / "Media",
+                home / "Downloads",
+                Path.cwd() / "media",
+            ]
+            for cand in candidates:
+                if cand.exists() and cand.is_dir():
+                    discovered.append(str(cand.resolve()))
+
+            if not discovered and self.media_path.exists():
+                discovered.append(str(self.media_path))
+
+            self.data["library_paths"] = discovered or [str(Path.cwd())]
+            self.save()
 
     def load(self) -> None:
         """Load settings from JSON file. Recovers safely if corrupted."""
@@ -41,7 +70,6 @@ class ConfigManager:
             if isinstance(loaded, dict):
                 self.data.update(loaded)
         except Exception as err:
-            # Backup corrupted config and recreate default safely
             backup_path = self.config_dir / f"config.corrupted.{self.config_file.name}"
             try:
                 if self.config_file.exists():
@@ -75,7 +103,55 @@ class ConfigManager:
 
     @media_path.setter
     def media_path(self, path: Path | str) -> None:
-        self.set("media_path", str(Path(path).expanduser().resolve()))
+        p_str = str(Path(path).expanduser().resolve())
+        self.set("media_path", p_str)
+        paths = self.get_library_paths()
+        if Path(p_str) not in paths:
+            self.add_library_path(Path(p_str))
+
+    def get_library_paths(self) -> list[Path]:
+        raw_paths = self.get("library_paths", [])
+        result = []
+        for p in raw_paths:
+            try:
+                resolved = Path(p).expanduser().resolve()
+                if resolved.exists() and resolved.is_dir() and resolved not in result:
+                    result.append(resolved)
+            except Exception:
+                pass
+        return result or [self.media_path]
+
+    def add_library_path(self, path: Path | str) -> None:
+        resolved = Path(path).expanduser().resolve()
+        paths = self.get("library_paths", [])
+        str_p = str(resolved)
+        if str_p not in paths:
+            paths.append(str_p)
+            self.set("library_paths", paths)
+
+    def remove_library_path(self, path: Path | str) -> None:
+        resolved = Path(path).expanduser().resolve()
+        paths = self.get("library_paths", [])
+        str_p = str(resolved)
+        if str_p in paths:
+            paths.remove(str_p)
+            self.set("library_paths", paths)
+
+    @property
+    def show_hidden_files(self) -> bool:
+        return bool(self.get("show_hidden_files", False))
+
+    @show_hidden_files.setter
+    def show_hidden_files(self, val: bool) -> None:
+        self.set("show_hidden_files", bool(val))
+
+    @property
+    def sort_order(self) -> str:
+        return str(self.get("sort_order", "name"))
+
+    @sort_order.setter
+    def sort_order(self, val: str) -> None:
+        self.set("sort_order", val)
 
     @property
     def volume(self) -> int:

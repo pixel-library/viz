@@ -1,31 +1,36 @@
 """
 Main Textual Application for Viz Terminal Media Center.
-Coordinates Library, Queue, Engine, Configuration, History, Views, and Contextual Keybindings.
+Coordinates Real Filesystem Tree, Library, Queue, Engine, Configuration, History, Views, and Contextual Keybindings.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
 from textual.events import Key
-from textual.widgets import Footer, Input, Label, ListItem, ListView
+from textual.widgets import Footer, Input, Label, ListItem, ListView, Tree
 
 from viz.config import ConfigManager
 from viz.constants import APP_TITLE
 from viz.engine import MediaEngine
+from viz.folder_tree import FolderNode
 from viz.history import HistoryManager
 from viz.library import LibraryManager
 from viz.models import LoopMode, MediaItem, MediaType, PlaybackState, PlaybackStatus
 from viz.queue import PlaybackQueue
 from viz.scanner import MediaScanner
 from viz.screens.help import HelpScreen
+from viz.screens.image_viewer import ImageViewerScreen
 from viz.screens.info import InfoScreen
+from viz.screens.library_paths import LibraryPathsScreen
 from viz.series import SeriesEpisode, SeriesGroup
+from viz.terminal import TerminalManager
+from viz.widgets.details import DetailsWidget
 from viz.widgets.footer import ContextualFooter
 from viz.widgets.header import HeaderWidget
 from viz.widgets.media_list import MediaListWidget
@@ -36,7 +41,7 @@ from viz.widgets.sidebar import SidebarWidget
 
 class VizApp(App):
     """
-    Viz - Terminal Media Center Application.
+    Viz - Professional Offline Terminal Media Center.
     """
 
     CSS_PATH = "styles/app.tcss"
@@ -60,13 +65,17 @@ class VizApp(App):
         Binding("a", "cycle_audio_stream", "Audio Stream", show=False),
         Binding("s", "cycle_subtitle_stream", "Subtitles", show=False),
         Binding("i", "show_media_info", "Info", show=False),
+        Binding("p", "action_manage_paths", "PATHS", show=True),
+        Binding("1", "filter_all", "Filter All", show=False),
+        Binding("2", "filter_videos", "Filter Videos", show=False),
+        Binding("3", "filter_audio", "Filter Audio", show=False),
+        Binding("4", "filter_images", "Filter Images", show=False),
         Binding("ctrl+t", "toggle_tv_mode", "TV MODE", show=True),
         Binding("slash", "focus_search", "SEARCH", show=True),
         Binding("r", "refresh_library", "Refresh", show=False),
         Binding("question_mark", "show_help", "HELP", show=True),
         Binding("q", "quit_app", "QUIT", show=True),
         Binding("escape", "dismiss_action", "Dismiss", show=False),
-        # Queue actions
         Binding("d", "remove_from_queue", "Remove", show=False),
         Binding("c", "clear_queue", "Clear Queue", show=False),
     ]
@@ -94,6 +103,8 @@ class VizApp(App):
         self.active_search_query: str = ""
         self.is_scanning: bool = False
         self.selected_series_name: Optional[str] = None
+        self.selected_folder: Optional[FolderNode] = None
+        self.folder_filter: str = "ALL"
 
     def compose(self) -> ComposeResult:
         yield HeaderWidget()
@@ -102,112 +113,164 @@ class VizApp(App):
         with Horizontal(classes="main-box"):
             yield SidebarWidget()
             yield MediaListWidget()
+            yield DetailsWidget()
 
         yield PlayerStatusWidget()
         yield ContextualFooter()
 
     def on_mount(self) -> None:
-        """Initialize widgets and scan library."""
+        """Initialize widgets, hide text cursor, and scan library."""
+        TerminalManager.setup_terminal()
         self.title = f"Viz - {self.config.media_path.name}"
         self.engine.on_state_change_callback = self.on_engine_state_changed
         self.refresh_library()
 
-        # Update loop for timer & playback position saving
+        # Timer loop for state sync
         self.set_interval(0.5, self.sync_playback_loop)
 
     @work(thread=True)
     def refresh_library(self) -> None:
-        """Background thread scan of configured media directory."""
+        """Background thread scan of all configured library directories."""
         self.is_scanning = True
         self.call_from_thread(self.update_ui_views)
 
-        target_dir = self.config.media_path
-        discovered = self.scanner.scan_directory(target_dir)
+        target_paths = self.config.get_library_paths()
+        discovered = self.scanner.scan_directories(
+            target_paths,
+            show_hidden=self.config.show_hidden_files,
+        )
 
-        self.library.set_items(discovered)
+        self.library.set_items_and_roots(discovered, target_paths)
         self.is_scanning = False
         self.call_from_thread(self.update_ui_views)
 
     def update_ui_views(self) -> None:
-        """Update Sidebar counts and Right Column view based on active category."""
-        sidebar = self.query_one(SidebarWidget)
-        sidebar.update_counts(self.library, queue_count=len(self.queue.up_next))
+        """Update Sidebar Tree, counts, Middle Column view, and Details Panel."""
+        try:
+            sidebar = self.query_one(SidebarWidget)
+            sidebar.update_tree_and_counts(self.library, queue_count=len(self.queue.up_next))
 
-        footer = self.query_one(ContextualFooter)
-        footer.set_mode_hint(self.active_category)
+            footer = self.query_one(ContextualFooter)
+            footer.set_mode_hint(self.active_category if not self.selected_folder else "folder")
 
-        media_list = self.query_one(MediaListWidget)
+            media_list = self.query_one(MediaListWidget)
+            details = self.query_one(DetailsWidget)
 
-        if self.is_scanning:
-            media_list.update_list(
-                media_items=[],
-                is_scanning=True,
-                media_path_display=str(self.config.media_path),
-            )
-            return
+            if self.is_scanning:
+                media_list.render_scanning()
+                details.show_empty("Scanning library directories...")
+                return
 
-        if self.active_search_query:
-            query = self.active_search_query.lower()
-            matching = [
-                m for m in self.library.all_items
-                if query in m.name.lower() or query in (m.title or "").lower() or query in (m.artist or "").lower()
-            ]
-            media_list.render_all_media(matching, query=self.active_search_query)
-            return
+            if self.active_search_query:
+                query = self.active_search_query.lower()
+                matching = [
+                    m for m in self.library.all_items
+                    if query in m.name.lower() or query in (m.title or "").lower() or query in (m.artist or "").lower()
+                ]
+                media_list.render_all_media(matching, query=self.active_search_query)
+                details.show_empty(f"Search: '{self.active_search_query}' ({len(matching)} matches)")
+                return
 
-        if self.active_category == "all":
-            media_list.render_all_media(self.library.all_items)
+            if self.selected_folder:
+                media_list.render_folder(self.selected_folder, active_filter=self.folder_filter)
+                details.show_folder(self.selected_folder)
 
-        elif self.active_category == "movies":
-            media_list.render_movies(self.library.movies)
+            elif self.active_category == "all":
+                media_list.render_all_media(self.library.all_items)
+                details.show_empty(f"ALL MEDIA ({len(self.library.all_items)} items)")
 
-        elif self.active_category == "series":
-            if self.selected_series_name and self.selected_series_name in self.library.series_groups:
-                group = self.library.series_groups[self.selected_series_name]
-                all_eps = []
-                for season in group.seasons.values():
-                    all_eps.extend(season)
-                media_list.render_episodes(self.selected_series_name, all_eps)
-            else:
-                media_list.render_series(self.library.series_groups)
+            elif self.active_category == "videos":
+                media_list.render_videos(self.library.videos)
+                details.show_empty(f"VIDEOS ({len(self.library.videos)} items)")
 
-        elif self.active_category == "music":
-            media_list.render_music(self.library.music)
+            elif self.active_category == "movies":
+                media_list.render_movies(self.library.movies)
+                details.show_empty(f"MOVIES ({len(self.library.movies)} items)")
 
-        elif self.active_category == "continue":
-            media_list.render_continue_watching(self.library.get_continue_watching())
+            elif self.active_category == "series":
+                if self.selected_series_name and self.selected_series_name in self.library.series_groups:
+                    group = self.library.series_groups[self.selected_series_name]
+                    all_eps = []
+                    for season in group.seasons.values():
+                        all_eps.extend(season)
+                    media_list.render_episodes(self.selected_series_name, all_eps)
+                    details.show_empty(f"SERIES: {self.selected_series_name}")
+                else:
+                    media_list.render_series(self.library.series_groups)
+                    details.show_empty(f"SERIES ({len(self.library.series_groups)} shows)")
 
-        elif self.active_category == "recent":
-            media_list.render_all_media(self.library.get_recently_played())
+            elif self.active_category == "music":
+                media_list.render_music(self.library.music)
+                details.show_empty(f"MUSIC ({len(self.library.music)} tracks)")
 
-        elif self.active_category == "favorites":
-            media_list.render_all_media(self.library.get_favorites())
+            elif self.active_category == "images":
+                media_list.render_images(self.library.images)
+                details.show_empty(f"IMAGES ({len(self.library.images)} photos)")
 
-        elif self.active_category == "completed":
-            media_list.render_all_media(self.library.get_completed())
+            elif self.active_category == "continue":
+                media_list.render_continue_watching(self.library.get_continue_watching())
+                details.show_empty("CONTINUE WATCHING")
 
-        elif self.active_category == "queue":
-            media_list.render_queue(self.queue.current_item, self.queue.up_next)
+            elif self.active_category == "recent":
+                media_list.render_all_media(self.library.get_recently_played())
+                details.show_empty("RECENTLY PLAYED")
+
+            elif self.active_category == "favorites":
+                media_list.render_all_media(self.library.get_favorites())
+                details.show_empty("FAVORITES")
+
+            elif self.active_category == "completed":
+                media_list.render_all_media(self.library.get_completed())
+                details.show_empty("COMPLETED")
+
+            elif self.active_category == "queue":
+                media_list.render_queue(self.queue.current_item, self.queue.up_next)
+                details.show_empty("PLAYBACK QUEUE")
+        except Exception:
+            pass
+
+    def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
+        """Handle selection of folder node in Filesystem Tree."""
+        data = event.node.data
+        if data and data.get("type") == "folder":
+            self.selected_folder = data["folder"]
+            self.active_category = "folder"
+            self.update_ui_views()
+
+    def on_tree_node_highlighted(self, event: Tree.NodeHighlighted) -> None:
+        """Real-time details update when navigating tree nodes."""
+        data = event.node.data
+        if data and data.get("type") == "folder":
+            try:
+                details = self.query_one(DetailsWidget)
+                details.show_folder(data["folder"])
+            except Exception:
+                pass
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle real-time search typing."""
         self.active_search_query = event.value.strip()
+        self.selected_folder = None
         self.update_ui_views()
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
-        """Handle list row selection."""
-        if event.list_view.id == "category-list":
+        """Handle selection in Global Views list or System list."""
+        if event.list_view.id == "global-views-list":
             item_id = (event.item.id or "") if event.item else ""
             if item_id.startswith("cat-"):
-                cat_id = item_id.replace("cat-", "")
-                if cat_id == "refresh":
-                    self.action_refresh_library()
-                elif cat_id == "help":
-                    self.action_show_help()
-                else:
-                    self.active_category = cat_id
-                    self.selected_series_name = None
-                    self.update_ui_views()
+                self.active_category = item_id.replace("cat-", "")
+                self.selected_folder = None
+                self.selected_series_name = None
+                self.update_ui_views()
+
+        elif event.list_view.id == "system-list":
+            item_id = (event.item.id or "") if event.item else ""
+            if item_id == "sys-paths":
+                self.action_manage_paths()
+            elif item_id == "sys-refresh":
+                self.action_refresh_library()
+            elif item_id == "sys-help":
+                self.action_show_help()
 
         elif event.list_view.id == "media-list":
             self.action_select_action()
@@ -215,6 +278,21 @@ class VizApp(App):
     def get_item_at_index(self, idx: int) -> Optional[MediaItem]:
         """Resolve currently selected MediaItem from UI ListView index."""
         if idx is None or idx < 0:
+            return None
+
+        if self.selected_folder:
+            filtered = self.selected_folder.media_files
+            if self.folder_filter == "VIDEOS":
+                filtered = [m for m in self.selected_folder.media_files if m.media_type == MediaType.VIDEO]
+            elif self.folder_filter == "AUDIO":
+                filtered = [m for m in self.selected_folder.media_files if m.media_type == MediaType.AUDIO]
+            elif self.folder_filter == "IMAGES":
+                filtered = [m for m in self.selected_folder.media_files if m.media_type == MediaType.IMAGE]
+
+            offset = len(self.selected_folder.subfolders)
+            file_idx = idx - offset
+            if 0 <= file_idx < len(filtered):
+                return filtered[file_idx]
             return None
 
         if self.active_search_query:
@@ -231,9 +309,17 @@ class VizApp(App):
             if 0 <= idx < len(self.library.all_items):
                 return self.library.all_items[idx]
 
+        elif self.active_category == "videos":
+            if 0 <= idx < len(self.library.videos):
+                return self.library.videos[idx]
+
         elif self.active_category == "movies":
             if 0 <= idx < len(self.library.movies):
                 return self.library.movies[idx]
+
+        elif self.active_category == "images":
+            if 0 <= idx < len(self.library.images):
+                return self.library.images[idx]
 
         elif self.active_category == "series" and self.selected_series_name:
             group = self.library.series_groups.get(self.selected_series_name)
@@ -279,6 +365,13 @@ class VizApp(App):
         if idx is None:
             return
 
+        # Subfolder selection in Folder view
+        if self.selected_folder:
+            if 0 <= idx < len(self.selected_folder.subfolders):
+                self.selected_folder = self.selected_folder.subfolders[idx]
+                self.update_ui_views()
+                return
+
         if self.active_category == "series" and not self.selected_series_name:
             series_names = list(self.library.series_groups.keys())
             if 0 <= idx < len(series_names):
@@ -291,7 +384,12 @@ class VizApp(App):
             self.play_media_item(target_item)
 
     def play_media_item(self, item: MediaItem) -> None:
-        """Play target MediaItem with resume position checking."""
+        """Play target MediaItem or launch Image Viewer."""
+        if item.media_type == MediaType.IMAGE:
+            folder_imgs = [m for m in (self.selected_folder.media_files if self.selected_folder else self.library.images) if m.media_type == MediaType.IMAGE]
+            self.push_screen(ImageViewerScreen(item, folder_imgs))
+            return
+
         resume_pos = self.history.get_resume_position(item.path)
         if resume_pos > 0.0:
             formatted_time = PlayerStatusWidget.format_time(resume_pos)
@@ -414,6 +512,29 @@ class VizApp(App):
         if target_item:
             self.push_screen(InfoScreen(target_item))
 
+    def action_manage_paths(self) -> None:
+        self.push_screen(LibraryPathsScreen(self.config))
+
+    def action_filter_all(self) -> None:
+        self.folder_filter = "ALL"
+        self.update_ui_views()
+        self.notify("Filter: ALL", title="Folder View")
+
+    def action_filter_videos(self) -> None:
+        self.folder_filter = "VIDEOS"
+        self.update_ui_views()
+        self.notify("Filter: VIDEOS", title="Folder View")
+
+    def action_filter_audio(self) -> None:
+        self.folder_filter = "AUDIO"
+        self.update_ui_views()
+        self.notify("Filter: AUDIO", title="Folder View")
+
+    def action_filter_images(self) -> None:
+        self.folder_filter = "IMAGES"
+        self.update_ui_views()
+        self.notify("Filter: IMAGES", title="Folder View")
+
     def action_remove_from_queue(self) -> None:
         if self.active_category == "queue":
             media_list = self.query_one(MediaListWidget)
@@ -437,7 +558,7 @@ class VizApp(App):
         footer.set_mode_hint("search")
 
     def action_refresh_library(self) -> None:
-        self.notify("Rescanning media directory...", title="Refresh")
+        self.notify("Rescanning library directories...", title="Refresh")
         self.refresh_library()
 
     def action_toggle_tv_mode(self) -> None:
@@ -447,8 +568,15 @@ class VizApp(App):
         self.push_screen(HelpScreen())
 
     def action_dismiss_action(self) -> None:
-        if self.screen.__class__.__name__ in ("HelpScreen", "InfoScreen"):
+        if self.screen.__class__.__name__ in ("HelpScreen", "InfoScreen", "ImageViewerScreen", "LibraryPathsScreen", "DirectorySelectorModal"):
             self.pop_screen()
+        elif self.selected_folder:
+            if self.selected_folder.parent:
+                self.selected_folder = self.selected_folder.parent
+            else:
+                self.selected_folder = None
+                self.active_category = "all"
+            self.update_ui_views()
         elif self.selected_series_name:
             self.selected_series_name = None
             self.update_ui_views()
@@ -462,6 +590,7 @@ class VizApp(App):
             self.set_focus(None)
 
     def action_quit_app(self) -> None:
+        TerminalManager.restore_terminal()
         st = self.engine.state
         if st.current_media and st.position > 0:
             self.history.update_position(st.current_media.path, st.position, st.duration)

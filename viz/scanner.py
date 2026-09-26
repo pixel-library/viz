@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 from typing import Callable, List, Optional, Set
 
-from viz.constants import SUPPORTED_EXTENSIONS
+from viz.constants import SUPPORTED_EXTENSIONS, SYSTEM_EXCLUDE_PATHS
 from viz.models import MediaItem
 
 
@@ -22,9 +22,30 @@ class MediaScanner:
     def __init__(self, supported_extensions: Set[str] = SUPPORTED_EXTENSIONS) -> None:
         self.supported_extensions = {ext.lower() for ext in supported_extensions}
 
+    def scan_directories(
+        self,
+        directories: List[Path],
+        show_hidden: bool = False,
+        progress_callback: Optional[Callable[[int, Path], None]] = None,
+    ) -> List[MediaItem]:
+        """Scan multiple library root directories recursively."""
+        discovered: List[MediaItem] = []
+        seen_paths: Set[Path] = set()
+
+        for d in directories:
+            items = self.scan_directory(d, show_hidden=show_hidden, progress_callback=progress_callback)
+            for item in items:
+                resolved = item.path.resolve()
+                if resolved not in seen_paths:
+                    seen_paths.add(resolved)
+                    discovered.append(item)
+
+        return sorted(discovered, key=lambda m: m.name.lower())
+
     def scan_directory(
         self,
         directory: Path,
+        show_hidden: bool = False,
         progress_callback: Optional[Callable[[int, Path], None]] = None,
     ) -> List[MediaItem]:
         """
@@ -35,18 +56,28 @@ class MediaScanner:
         if not resolved_dir.exists() or not resolved_dir.is_dir():
             return []
 
+        # System directory exclusion safety check
+        for sys_path in SYSTEM_EXCLUDE_PATHS:
+            if str(resolved_dir).startswith(sys_path):
+                print(f"[Scanner Warning] Skipping excluded system directory: {resolved_dir}")
+                return []
+
         discovered: List[MediaItem] = []
         count = 0
 
         try:
-            # Iterative walk to safely catch permission errors on subdirectories
             for root, dirs, files in os.walk(resolved_dir, followlinks=False):
-                # Filter out hidden directories in place
-                dirs[:] = [d for d in dirs if not d.startswith(".")]
+                # Check system excludes on subdirectories
+                if any(root.startswith(sp) for sp in SYSTEM_EXCLUDE_PATHS):
+                    dirs.clear()
+                    continue
+
+                if not show_hidden:
+                    dirs[:] = [d for d in dirs if not d.startswith(".")]
 
                 root_path = Path(root)
                 for filename in files:
-                    if filename.startswith("."):
+                    if not show_hidden and filename.startswith("."):
                         continue
 
                     ext = os.path.splitext(filename)[1].lower()
@@ -61,5 +92,4 @@ class MediaScanner:
         except (PermissionError, OSError) as err:
             print(f"[Scanner Warning] Scan interrupted in {resolved_dir}: {err}")
 
-        # Deterministic sorting by display name
         return sorted(discovered, key=lambda m: m.name.lower())

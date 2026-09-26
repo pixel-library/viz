@@ -41,7 +41,33 @@ AUDIO_EXTENSIONS = {
     ".aiff",
 }
 
-SUPPORTED_EXTENSIONS = VIDEO_EXTENSIONS | AUDIO_EXTENSIONS
+# Supported Image Extensions
+IMAGE_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".bmp",
+    ".tiff",
+    ".tif",
+}
+
+SUPPORTED_EXTENSIONS = VIDEO_EXTENSIONS | AUDIO_EXTENSIONS | IMAGE_EXTENSIONS
+
+# System Directories Excluded From Recursion
+SYSTEM_EXCLUDE_PATHS = {
+    "/proc",
+    "/sys",
+    "/dev",
+    "/run",
+    "/etc",
+    "/usr",
+    "/bin",
+    "/sbin",
+    "/var",
+    "/tmp",
+}
 
 # XDG Compliant Storage Paths
 CONFIG_DIR = Path.home() / ".config" / "viz"

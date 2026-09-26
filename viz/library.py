@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set
 
 from viz.constants import FAVORITES_FILE
+from viz.folder_tree import FolderNode, FolderTreeBuilder
 from viz.history import HistoryManager
 from viz.metadata import MetadataExtractor
 from viz.models import MediaItem, MediaType
@@ -17,17 +18,20 @@ from viz.series import SeriesDetector, SeriesGroup
 
 
 class LibraryManager:
-    """Central repository for scanned media, classification, and favorites."""
+    """Central repository for scanned media, classification, folder tree, and favorites."""
 
     def __init__(self, history: HistoryManager, favorites_file: Path = FAVORITES_FILE) -> None:
         self.history = history
         self.favorites_file = favorites_file.expanduser().resolve()
         
         self.all_items: List[MediaItem] = []
+        self.videos: List[MediaItem] = []
         self.movies: List[MediaItem] = []
         self.series_groups: Dict[str, SeriesGroup] = {}
         self.series_episodes: List[MediaItem] = []
         self.music: List[MediaItem] = []
+        self.images: List[MediaItem] = []
+        self.folder_roots: List[FolderNode] = []
         self.favorites: Set[str] = set()
 
         self.load_favorites()
@@ -70,11 +74,13 @@ class LibraryManager:
         self.save_favorites()
         return item.favorite
 
-    def set_items(self, discovered_items: List[MediaItem]) -> None:
-        """Categorize and enrich scanned MediaItems."""
+    def set_items_and_roots(self, discovered_items: List[MediaItem], library_roots: List[Path]) -> None:
+        """Categorize scanned MediaItems and build real FolderNodes for roots."""
         self.all_items = discovered_items
+        self.videos = []
         self.movies = []
         self.music = []
+        self.images = []
         self.series_episodes = []
 
         # Detect series episodes
@@ -86,9 +92,8 @@ class LibraryManager:
                     series_item_paths.add(ep.media_item.path.resolve())
                     self.series_episodes.append(ep.media_item)
 
-        # Categorize Movies vs Music vs Series
+        # Categorize Videos vs Movies vs Series vs Music vs Images
         for item in discovered_items:
-            # Sync favorite & history status
             resolved_key = str(item.path.resolve())
             item.favorite = resolved_key in self.favorites
 
@@ -99,14 +104,25 @@ class LibraryManager:
                 item.last_played = float(entry.get("last_played", 0.0))
                 item.completed = bool(entry.get("completed", False))
 
-            # Enrich metadata
             MetadataExtractor.enrich_metadata(item)
 
             if item.media_type == MediaType.AUDIO:
                 self.music.append(item)
+            elif item.media_type == MediaType.IMAGE:
+                self.images.append(item)
             elif item.media_type == MediaType.VIDEO:
+                self.videos.append(item)
                 if resolved_key not in {str(p) for p in series_item_paths}:
                     self.movies.append(item)
+
+        # Build real filesystem folder tree
+        self.folder_roots = FolderTreeBuilder.build_tree(library_roots, discovered_items)
+
+    def set_items(self, discovered_items: List[MediaItem]) -> None:
+        """Fallback method for single-path setting."""
+        default_root = Path.cwd() / "media"
+        roots = [item.directory.resolve() for item in discovered_items[:1]] or [default_root]
+        self.set_items_and_roots(discovered_items, roots)
 
     # Category Collection Getters
     def get_continue_watching(self) -> List[MediaItem]:
@@ -148,6 +164,10 @@ class LibraryManager:
         return len(self.all_items)
 
     @property
+    def videos_count(self) -> int:
+        return len(self.videos)
+
+    @property
     def movies_count(self) -> int:
         return len(self.movies)
 
@@ -158,6 +178,10 @@ class LibraryManager:
     @property
     def music_count(self) -> int:
         return len(self.music)
+
+    @property
+    def images_count(self) -> int:
+        return len(self.images)
 
     @property
     def favorites_count(self) -> int:

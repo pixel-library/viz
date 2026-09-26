@@ -9,12 +9,13 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Optional
 
-from viz.constants import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS
+from viz.constants import AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
 
 
 class MediaType(Enum):
     VIDEO = "video"
     AUDIO = "audio"
+    IMAGE = "image"
     UNKNOWN = "unknown"
 
     @classmethod
@@ -24,6 +25,8 @@ class MediaType(Enum):
             return cls.VIDEO
         elif ext in AUDIO_EXTENSIONS:
             return cls.AUDIO
+        elif ext in IMAGE_EXTENSIONS:
+            return cls.IMAGE
         return cls.UNKNOWN
 
 
@@ -44,7 +47,7 @@ class LoopMode(Enum):
 
 @dataclass
 class MediaItem:
-    """Rich media model representing an audio or video file."""
+    """Rich media model representing an audio, video, or image file."""
 
     path: Path
     name: str
@@ -75,6 +78,11 @@ class MediaItem:
     track_num: Optional[int] = None
     title: Optional[str] = None
 
+    # Image Metadata
+    image_width: int = 0
+    image_height: int = 0
+    image_format: str = ""
+
     @classmethod
     def from_file(cls, path: Path) -> Optional[MediaItem]:
         """Safely instantiate MediaItem from filesystem Path."""
@@ -87,7 +95,7 @@ class MediaItem:
             if media_type == MediaType.UNKNOWN:
                 return None
 
-            return cls(
+            item = cls(
                 path=resolved_path,
                 name=resolved_path.name,
                 display_name=resolved_path.stem,
@@ -97,6 +105,18 @@ class MediaItem:
                 file_size=stat.st_size,
                 modified_time=stat.st_mtime,
             )
+
+            # Fast dimension extraction for images if Pillow is available
+            if media_type == MediaType.IMAGE:
+                try:
+                    from PIL import Image
+                    with Image.open(resolved_path) as img:
+                        item.image_width, item.image_height = img.size
+                        item.image_format = img.format or resolved_path.suffix.lstrip(".").upper()
+                except Exception:
+                    item.image_format = resolved_path.suffix.lstrip(".").upper()
+
+            return item
         except (PermissionError, FileNotFoundError, OSError):
             return None
 
@@ -113,6 +133,8 @@ class MediaItem:
             return "🎵"
         elif self.media_type == MediaType.VIDEO:
             return "🎬"
+        elif self.media_type == MediaType.IMAGE:
+            return "🖼️"
         return "📄"
 
     @property
@@ -121,6 +143,8 @@ class MediaItem:
             return "[A]"
         elif self.media_type == MediaType.VIDEO:
             return "[V]"
+        elif self.media_type == MediaType.IMAGE:
+            return "[IMG]"
         return "[?]"
 
 

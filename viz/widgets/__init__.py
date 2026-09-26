@@ -2,6 +2,7 @@
 UI Widgets module for Viz Media Player.
 """
 
+from viz.widgets.details import DetailsWidget
 from viz.widgets.footer import ContextualFooter
 from viz.widgets.header import HeaderWidget
 from viz.widgets.media_list import MediaListWidget
@@ -14,6 +15,7 @@ __all__ = [
     "SearchWidget",
     "SidebarWidget",
     "MediaListWidget",
+    "DetailsWidget",
     "PlayerStatusWidget",
     "ContextualFooter",
 ]
