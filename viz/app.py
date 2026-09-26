@@ -224,7 +224,7 @@ class VizApp(App):
                 if data.get("type") == "folder":
                     details.show_folder(data["folder"])
                 elif data.get("type") == "media":
-                    details.show_media(data["media"])
+                    details.show_media_item(data["media"])
             except Exception:
                 pass
 
@@ -267,16 +267,39 @@ class VizApp(App):
                 self.play_media_item(event.item.media_data)
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
-        """Real-time details panel update when highlight changes in media list."""
-        if event.list_view.id == "media-list":
-            try:
-                details = self.query_one(DetailsWidget)
+        """Real-time details panel update when highlight changes in any ListView."""
+        try:
+            details = self.query_one(DetailsWidget)
+
+            if event.list_view.id == "media-list":
                 if isinstance(event.item, FolderListItem):
                     details.show_folder(event.item.folder_data)
                 elif isinstance(event.item, MediaListItem):
-                    details.show_media(event.item.media_data)
-            except Exception:
-                pass
+                    details.show_media_item(event.item.media_data)
+                elif isinstance(event.item, HeaderListItem) or not event.item:
+                    if self.selected_folder:
+                        details.show_folder(self.selected_folder)
+                    else:
+                        details.show_empty("LIBRARY")
+
+            elif event.list_view.id == "personal-views-list":
+                item_id = (event.item.id or "") if event.item else ""
+                if item_id == "cat-continue":
+                    details.show_empty("CONTINUE WATCHING")
+                elif item_id == "cat-recent":
+                    details.show_empty("RECENTLY PLAYED")
+                elif item_id == "cat-favorites":
+                    details.show_empty("FAVORITES")
+
+            elif event.list_view.id == "storage-list":
+                item_id = (event.item.id or "") if event.item else ""
+                mounts = MountsManager.get_accessible_mounts()
+                for mount_path, label_str in mounts:
+                    if f"drv-{hash(str(mount_path))}" == item_id:
+                        details.show_empty(f"STORAGE DRIVE: {label_str}\nPath: {mount_path}")
+                        break
+        except Exception:
+            pass
 
     def action_select_action(self) -> None:
         """Handle Enter key action based on currently highlighted item in Media List."""
