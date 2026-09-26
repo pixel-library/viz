@@ -1,12 +1,9 @@
 """
 Dedicated Terminal Image Viewer Screen for Viz Media Center.
 
-Two rendering modes:
-1. NATIVE MODE (default on X11/Wayland): Opens image in native MPV window at full resolution.
-   The terminal shows metadata, navigation controls, and file info.
-2. TERMINAL MODE (fallback): Renders high-quality truecolor half-block art within the terminal.
-
-Press 'v' to toggle between native and terminal preview modes.
+Renders images directly upon opening:
+1. Native display (if GUI environment available): Automatically launches hardware-accelerated MPV window.
+2. In-terminal rendering: Full-resolution raster (Kitty Graphics Protocol) or high-quality truecolor RGB half-block fallback.
 """
 
 from __future__ import annotations
@@ -26,7 +23,7 @@ from viz.terminal import TerminalCapabilities
 
 
 class ImageViewerScreen(ModalScreen):
-    """Full-terminal screen for viewing images with native rendering support."""
+    """Full-terminal screen for viewing images with direct native rendering."""
 
     BINDINGS = [
         Binding("escape", "dismiss_screen", "Back", show=True),
@@ -42,7 +39,6 @@ class ImageViewerScreen(ModalScreen):
         Binding("r", "rotate_image", "Rotate", show=True),
         Binding("f", "fit_zoom", "Fit", show=True),
         Binding("v", "open_native", "Native View", show=True),
-        Binding("enter", "open_native", "Native View", show=False),
     ]
 
     def __init__(self, current_item: MediaItem, folder_images: List[MediaItem] = None) -> None:
@@ -63,6 +59,8 @@ class ImageViewerScreen(ModalScreen):
 
     def on_mount(self) -> None:
         self.update_display()
+        if self.native_mode:
+            self.action_open_native()
 
     def on_resize(self, event) -> None:
         self.update_display()
@@ -85,38 +83,15 @@ class ImageViewerScreen(ModalScreen):
 
         ascii_body = self.query_one("#image-ascii-body", Label)
 
-        if self.native_mode:
-            # In native mode, show file info instead of terminal rendering
-            dim_str = f"{item.image_width} × {item.image_height}" if item.image_width > 0 else "Unknown"
-            size_mb = item.file_size / (1024 * 1024)
-            size_str = f"{size_mb:.2f} MB" if size_mb >= 1.0 else f"{int(item.file_size / 1024)} KB"
-            fmt_str = item.image_format or item.extension.upper().lstrip(".")
-
-            native_info = (
-                "\n\n\n"
-                "   ┌─────────────────────────────────────────────────────────────┐\n"
-                f"   │          [bold orange]{item.name[:45]:<45}[/bold orange]  │\n"
-                "   │                                                             │\n"
-                f"   │          FORMAT: {fmt_str:<8}  DIMENSIONS: {dim_str:<15}  │\n"
-                f"   │          FILE SIZE: {size_str:<12}                          │\n"
-                "   │                                                             │\n"
-                "   │        Press [bold]V[/bold] or [bold]ENTER[/bold] to open in native viewer        │\n"
-                "   │        (Full resolution, hardware-accelerated MPV)          │\n"
-                "   │                                                             │\n"
-                "   │        Press [bold]T[/bold] for in-terminal preview                    │\n"
-                "   └─────────────────────────────────────────────────────────────┘\n"
-            )
-            ascii_body.update(native_info)
-        else:
-            # Terminal rendering mode
-            rgb_art = ImageHelper.generate_rgb_preview(
-                item.path,
-                max_w=max_w,
-                max_h=max_h,
-                rotation=self.rotation_angle,
-                zoom=self.zoom_level,
-            )
-            ascii_body.update(rgb_art)
+        # Direct image rendering (Kitty protocol or high-quality truecolor half-block)
+        rgb_art = ImageHelper.generate_rgb_preview(
+            item.path,
+            max_w=max_w,
+            max_h=max_h,
+            rotation=self.rotation_angle,
+            zoom=self.zoom_level,
+        )
+        ascii_body.update(rgb_art)
 
         meta_body = self.query_one("#image-meta-body", Label)
         size_mb = item.file_size / (1024 * 1024)
@@ -124,11 +99,10 @@ class ImageViewerScreen(ModalScreen):
         dim_str = f"{item.image_width} × {item.image_height}" if item.image_width > 0 else "Unknown"
         zoom_str = f"{int(self.zoom_level * 100)}%"
         rot_str = f"{self.rotation_angle}°"
-        mode_str = "NATIVE" if self.native_mode else "TERMINAL"
 
         meta_text = (
             f"[bold orange]{item.name}[/bold orange]\n"
-            f"[bold]{item.image_format or item.extension.upper()}[/bold] • {dim_str} • {size_str} • Zoom: {zoom_str} • Rotation: {rot_str} • Mode: {mode_str}\n"
+            f"[bold]{item.image_format or item.extension.upper()}[/bold] • {dim_str} • {size_str} • Zoom: {zoom_str} • Rotation: {rot_str}\n"
             f"[dim]{item.path}[/dim]"
         )
         meta_body.update(meta_text)
@@ -140,26 +114,26 @@ class ImageViewerScreen(ModalScreen):
         item = self.folder_images[self.current_index]
 
         # Try engine's native image viewer first
-        if hasattr(self.app, "engine"):
+        if hasattr(self.app, "engine") and self.app.engine:
             if self.app.engine.play_image(item):
-                self.app.notify(f"Opened in native viewer: {item.name}", title="Image Viewer")
                 return
 
         # Fallback to ImageHelper
-        if ImageHelper.open_native_viewer(item.path):
-            self.app.notify(f"Opened in native viewer: {item.name}", title="Image Viewer")
-        else:
-            self.app.notify("No display server available for native viewing", title="Image Viewer", severity="warning")
+        ImageHelper.open_native_viewer(item.path)
 
     def action_prev_image(self) -> None:
         if len(self.folder_images) > 1:
             self.current_index = (self.current_index - 1) % len(self.folder_images)
             self.update_display()
+            if self.native_mode:
+                self.action_open_native()
 
     def action_next_image(self) -> None:
         if len(self.folder_images) > 1:
             self.current_index = (self.current_index + 1) % len(self.folder_images)
             self.update_display()
+            if self.native_mode:
+                self.action_open_native()
 
     def action_zoom_in(self) -> None:
         self.zoom_level = min(3.0, self.zoom_level + 0.25)
@@ -184,3 +158,4 @@ class ImageViewerScreen(ModalScreen):
 
     def action_dismiss_screen(self) -> None:
         self.dismiss()
+
