@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "viz-player"
-version = "1.0.0"
+version = "0.1.0"
 description = "A stylized, offline, terminal-based media player built with Textual & python-mpv"
 readme = "README.md"
 authors = [

@@ -1,0 +1,174 @@
+/* Viz Terminal Media Player - Retro Hacker/VCR Orange Theme Stylesheet */
+
+Screen {
+    background: #0c0905;
+    color: #ffccaa;
+}
+
+/* Header ASCII Component */
+HeaderWidget {
+    align: center top;
+    height: 6;
+    margin-top: 1;
+    margin-bottom: 0;
+}
+
+#ascii-header {
+    text-align: center;
+    color: #ff8800;
+    text-style: bold;
+    height: 6;
+}
+
+/* Search Component */
+SearchWidget {
+    align: center top;
+    height: 3;
+    margin-top: 0;
+    margin-bottom: 1;
+}
+
+#search-input {
+    width: 72;
+    border: tall #ff8800;
+    background: #140d06;
+    color: #ff8800;
+    padding: 0 1;
+}
+
+#search-input:focus {
+    border: double #ff9900;
+    background: #1c1208;
+}
+
+/* Main Navigation Box (50/50 Layout) */
+.main-box {
+    border: round #ff8800;
+    height: 1fr;
+    margin: 0 2;
+    background: #0f0a05;
+}
+
+.column {
+    width: 1fr;
+    height: 100%;
+    padding: 1 2;
+}
+
+#left-column {
+    border-right: solid #33200d;
+}
+
+.column-header {
+    text-style: bold;
+    color: #ff8800;
+    margin-bottom: 1;
+    padding-bottom: 0;
+    border-bottom: heavy #ff8800;
+}
+
+/* Categories List */
+#category-list {
+    height: 1fr;
+    border: none;
+    background: transparent;
+}
+
+#category-list > ListItem {
+    padding: 0 1;
+    color: #d99966;
+    background: transparent;
+}
+
+#category-list > ListItem:hover {
+    background: #241407;
+    color: #ff8800;
+}
+
+#category-list > ListItem.--highlight {
+    background: #ff8800;
+    color: #000000;
+    text-style: bold;
+}
+
+/* Dynamic Media List (Right Column) */
+#media-list {
+    height: 1fr;
+    border: none;
+    background: transparent;
+}
+
+#media-list > ListItem {
+    padding: 0 1;
+    color: #ffccaa;
+    background: transparent;
+}
+
+#media-list > ListItem:hover {
+    background: #241407;
+    color: #ff8800;
+}
+
+#media-list > ListItem.--highlight {
+    background: #ff8800;
+    color: #000000;
+    text-style: bold;
+}
+
+/* Empty / Searching / Status Info Boxes */
+.status-info-box {
+    align: center middle;
+    text-align: center;
+    color: #ff9900;
+    padding: 2;
+}
+
+/* Player Status & Controls Bar */
+PlayerStatusWidget {
+    height: 3;
+    margin: 0 2;
+    border: double #ff8800;
+    background: #140e07;
+    padding: 0 2;
+    align: center middle;
+}
+
+#player-bar {
+    height: 1;
+    width: 100%;
+    align: center middle;
+}
+
+.bar-status {
+    color: #ff8800;
+    text-style: bold;
+    width: 14;
+}
+
+.bar-title {
+    color: #ffffff;
+    text-style: bold;
+    width: 1fr;
+    text-align: center;
+}
+
+.bar-scrubber {
+    color: #ff9900;
+    width: 38;
+    text-align: right;
+}
+
+/* Notification Banners */
+#notification-bar {
+    height: 1;
+    color: #ff8800;
+    text-style: bold;
+    text-align: center;
+    background: #1a1005;
+}
+
+/* Footer Styling */
+Footer {
+    background: #080503;
+    color: #ff8800;
+}

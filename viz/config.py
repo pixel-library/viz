@@ -1,80 +1,94 @@
 """
-Configuration & User Preferences Manager for Viz Media Player.
-Persists volume settings, favorites, recent history, and selected theme.
+Persistent Configuration Manager for Viz Media Player.
+Stores user settings in ~/.config/viz/config.json with atomic writes and recovery.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
+
+from viz.constants import CONFIG_DIR, CONFIG_FILE
 
 
 class ConfigManager:
-    """Manages persistent JSON configuration in ~/.config/viz/config.json"""
+    """Manages persistent JSON configuration with schema versioning and atomic writes."""
 
-    def __init__(self) -> None:
-        self.config_dir = Path.home() / ".config" / "viz"
-        self.config_file = self.config_dir / "config.json"
-        self._default_config: Dict[str, Any] = {
-            "volume": 80,
-            "theme": "cyberpunk",
-            "favorites": [],
-            "recent_history": [],
-            "last_directory": str(Path.cwd()),
-        }
-        self.data: Dict[str, Any] = dict(self._default_config)
+    DEFAULT_CONFIG: Dict[str, Any] = {
+        "version": 1,
+        "media_path": str(Path.cwd() / "media"),
+        "volume": 80,
+        "muted": False,
+        "active_theme": "orange",
+    }
+
+    def __init__(self, config_file: Path = CONFIG_FILE) -> None:
+        self.config_file = config_file.expanduser().resolve()
+        self.config_dir = self.config_file.parent
+        self.data: Dict[str, Any] = dict(self.DEFAULT_CONFIG)
         self.load()
 
     def load(self) -> None:
-        """Load configuration from disk."""
+        """Load settings from JSON file. Recovers safely if corrupted."""
+        if not self.config_file.exists():
+            self.save()
+            return
+
         try:
-            if self.config_file.exists():
-                content = self.config_file.read_text(encoding="utf-8")
-                loaded = json.loads(content)
-                if isinstance(loaded, dict):
-                    self.data.update(loaded)
+            content = self.config_file.read_text(encoding="utf-8")
+            loaded = json.loads(content)
+            if isinstance(loaded, dict):
+                self.data.update(loaded)
         except Exception as err:
-            print(f"[Viz Config Warning] Could not load config: {err}")
+            # Backup corrupted config and recreate default safely
+            backup_path = self.config_dir / f"config.corrupted.{self.config_file.name}"
+            try:
+                if self.config_file.exists():
+                    self.config_file.rename(backup_path)
+            except Exception:
+                pass
+            print(f"[Config Warning] Corrupted config recovered. Error: {err}")
+            self.data = dict(self.DEFAULT_CONFIG)
+            self.save()
 
     def save(self) -> None:
-        """Save configuration to disk."""
+        """Atomic write to config file to prevent corruption on crash."""
         try:
             self.config_dir.mkdir(parents=True, exist_ok=True)
-            self.config_file.write_text(json.dumps(self.data, indent=2), encoding="utf-8")
+            temp_file = self.config_dir / f"{self.config_file.name}.tmp"
+            temp_file.write_text(json.dumps(self.data, indent=2), encoding="utf-8")
+            temp_file.replace(self.config_file)
         except Exception as err:
-            print(f"[Viz Config Warning] Could not save config: {err}")
+            print(f"[Config Warning] Could not save config: {err}")
 
     def get(self, key: str, default: Any = None) -> Any:
-        return self.data.get(key, default if default is not None else self._default_config.get(key))
+        return self.data.get(key, default if default is not None else self.DEFAULT_CONFIG.get(key))
 
     def set(self, key: str, value: Any) -> None:
         self.data[key] = value
         self.save()
 
-    def add_favorite(self, file_path: str) -> bool:
-        favs: List[str] = self.data.get("favorites", [])
-        if file_path not in favs:
-            favs.append(file_path)
-            self.set("favorites", favs)
-            return True
-        return False
+    @property
+    def media_path(self) -> Path:
+        return Path(self.get("media_path", str(Path.cwd() / "media"))).expanduser().resolve()
 
-    def remove_favorite(self, file_path: str) -> bool:
-        favs: List[str] = self.data.get("favorites", [])
-        if file_path in favs:
-            favs.remove(file_path)
-            self.set("favorites", favs)
-            return True
-        return False
+    @media_path.setter
+    def media_path(self, path: Path | str) -> None:
+        self.set("media_path", str(Path(path).expanduser().resolve()))
 
-    def is_favorite(self, file_path: str) -> bool:
-        return file_path in self.data.get("favorites", [])
+    @property
+    def volume(self) -> int:
+        return max(0, min(100, int(self.get("volume", 80))))
 
-    def add_recent(self, file_path: str) -> None:
-        history: List[str] = self.data.get("recent_history", [])
-        if file_path in history:
-            history.remove(file_path)
-        history.insert(0, file_path)
-        # Keep top 50 recent items
-        self.set("recent_history", history[:50])
+    @volume.setter
+    def volume(self, val: int) -> None:
+        self.set("volume", max(0, min(100, int(val))))
+
+    @property
+    def muted(self) -> bool:
+        return bool(self.get("muted", False))
+
+    @muted.setter
+    def muted(self, val: bool) -> None:
+        self.set("muted", bool(val))

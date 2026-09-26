@@ -1,5 +1,5 @@
 """
-Command-Line Interface Entrypoint for Viz Media Player.
+Command-Line Interface entry point for Viz Media Player.
 """
 
 from __future__ import annotations
@@ -8,8 +8,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from viz import __version__
-from viz.app import VizApp
+from viz.constants import __version__
 
 
 def main() -> None:
@@ -21,21 +20,36 @@ def main() -> None:
         "-p", "--path",
         type=str,
         default=None,
-        help="Specify media directory to scan on launch",
+        help="Path to media directory to scan on launch",
     )
     parser.add_argument(
         "-v", "--version",
         action="version",
         version=f"Viz Terminal Media Player v{__version__}",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging mode",
+    )
+
     args = parser.parse_args()
 
-    target_dir = args.path if args.path else None
-    if target_dir and not Path(target_dir).exists():
-        print(f"Error: Specified path '{target_dir}' does not exist.")
-        sys.exit(1)
+    target_path = None
+    if args.path:
+        resolved = Path(args.path).expanduser().resolve()
+        if not resolved.exists():
+            print(f"[ERROR] Media directory does not exist:\n  {resolved}")
+            sys.exit(1)
+        if not resolved.is_dir():
+            print(f"[ERROR] Specified path is not a directory:\n  {resolved}")
+            sys.exit(1)
+        target_path = resolved
 
-    app = VizApp(initial_dir=target_dir)
+    # Delayed import of VizApp after CLI validation
+    from viz.app import VizApp
+
+    app = VizApp(media_path_override=target_path)
     app.run()
 
 
