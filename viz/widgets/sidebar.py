@@ -39,13 +39,16 @@ class SidebarWidget(Widget):
     def compose(self) -> ComposeResult:
         with Vertical(classes="column", id="left-column"):
             yield Label("◆ MEDIA CENTER", classes="column-header")
-            yield ListView(id="category-list")
+            with ListView(id="category-list"):
+                current_section = ""
+                for cat_id, title, section in self.CATEGORIES:
+                    if section != current_section:
+                        current_section = section
+                        yield ListItem(Label(f"── {section} ──"), classes="section-header")
+                    yield ListItem(Label(f"  {title}"), id=f"cat-{cat_id}")
 
     def update_counts(self, library: LibraryManager, queue_count: int = 0) -> None:
-        """Update navigation items with real media counts."""
-        cat_list = self.query_one("#category-list", ListView)
-        cat_list.clear()
-
+        """Update navigation items with real media counts in-place."""
         counts = {
             "all": library.all_count,
             "movies": library.movies_count,
@@ -58,12 +61,12 @@ class SidebarWidget(Widget):
             "queue": queue_count,
         }
 
-        current_section = ""
-        for cat_id, title, section in self.CATEGORIES:
-            if section != current_section:
-                current_section = section
-                cat_list.append(ListItem(Label(f"\n── {section} ──"), classes="section-header"))
-
-            cnt = counts.get(cat_id)
-            cnt_str = f" ({cnt})" if cnt is not None and cat_id not in ("refresh", "help") else ""
-            cat_list.append(ListItem(Label(f"  {title}{cnt_str}"), id=f"cat-{cat_id}"))
+        for cat_id, title, _ in self.CATEGORIES:
+            try:
+                item = self.query_one(f"#cat-{cat_id}", ListItem)
+                label = item.query_one(Label)
+                cnt = counts.get(cat_id)
+                cnt_str = f" ({cnt})" if cnt is not None and cat_id not in ("refresh", "help") else ""
+                label.update(f"  {title}{cnt_str}")
+            except Exception:
+                pass

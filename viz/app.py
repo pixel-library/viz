@@ -197,9 +197,9 @@ class VizApp(App):
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle list row selection."""
         if event.list_view.id == "category-list":
-            idx = event.list_view.index
-            if idx is not None and 0 <= idx < len(SidebarWidget.CATEGORIES):
-                cat_id = SidebarWidget.CATEGORIES[idx][0]
+            item_id = (event.item.id or "") if event.item else ""
+            if item_id.startswith("cat-"):
+                cat_id = item_id.replace("cat-", "")
                 if cat_id == "refresh":
                     self.action_refresh_library()
                 elif cat_id == "help":
