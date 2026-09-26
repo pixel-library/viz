@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# ===============================================================================
+# VIZ TERMINAL MEDIA PLAYER - AUTOMATED ONE-LINE INSTALLER
+# ===============================================================================
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/pixel-library/viz/main/install.sh | bash
+# ===============================================================================
+
+set -e
+
+BOLD="\033[1m"
+GREEN="\033[32m"
+CYAN="\033[36m"
+YELLOW="\033[33m"
+RED="\033[31m"
+RESET="\033[0m"
+
+echo -e "${CYAN}${BOLD}"
+cat << "EOF"
+██╗   ██╗██╗███████╗
+██║   ██║██║╚══███╔╝
+██║   ██║██║  ███╔╝ 
+╚██╗ ██╔╝██║ ███╔╝  
+ ╚████╔╝ ██║███████╗
+  ╚═══╝  ╚═╝╚══════╝
+EOF
+echo -e "${RESET}"
+echo -e "${BOLD}Viz Terminal Media Player - Installer${RESET}"
+echo -e "--------------------------------------------------"
+
+# 1. Check Python version
+if ! command -v python3 &> /dev/null; then
+    echo -e "${RED}[Error] Python 3 is required but not installed.${RESET}"
+    exit 1
+fi
+
+PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+echo -e "${GREEN}✓ Found Python $PYTHON_VERSION${RESET}"
+
+# 2. Install System Media Dependencies (libmpv)
+echo -e "${CYAN} Checking system media dependencies (libmpv)...${RESET}"
+
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    if command -v apt-get &> /dev/null; then
+        echo -e "Detected Debian/Ubuntu system..."
+        sudo apt-get update -qq && sudo apt-get install -y -qq mpv libmpv-dev python3-pip python3-venv || true
+    elif command -v pacman &> /dev/null; then
+        echo -e "Detected Arch Linux system..."
+        sudo pacman -Sy --noconfirm mpv python-pip || true
+    elif command -v dnf &> /dev/null; then
+        echo -e "Detected Fedora system..."
+        sudo dnf install -y mpv mpv-devel python3-pip || true
+    fi
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    if command -v brew &> /dev/null; then
+        echo -e "Detected macOS system..."
+        brew install mpv || true
+    else
+        echo -e "${YELLOW}[Notice] Homebrew not found. Please install mpv manually using 'brew install mpv'${RESET}"
+    fi
+fi
+
+# 3. Install Viz Python Package
+echo -e "${CYAN} Installing Viz Python Package via Pip...${RESET}"
+python3 -m pip install --upgrade --user git+https://github.com/pixel-library/viz.git
+
+# 4. Ensure ~/.local/bin is in PATH
+USER_BIN="$HOME/.local/bin"
+if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
+    echo -e "${YELLOW} Adding $USER_BIN to your PATH...${RESET}"
+    SHELL_PROFILE=""
+    if [ -f "$HOME/.zshrc" ]; then
+        SHELL_PROFILE="$HOME/.zshrc"
+    elif [ -f "$HOME/.bashrc" ]; then
+        SHELL_PROFILE="$HOME/.bashrc"
+    fi
+
+    if [ -n "$SHELL_PROFILE" ]; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_PROFILE"
+        echo -e "${GREEN}✓ Added PATH export to $SHELL_PROFILE${RESET}"
+    fi
+fi
+
+echo -e ""
+echo -e "${GREEN}${BOLD}=================================================="
+echo -e " 🎉 Viz has been successfully installed!"
+echo -e "==================================================${RESET}"
+echo -e "To launch the player, type:"
+echo -e "  ${CYAN}${BOLD}viz${RESET}"
+echo -e ""
+echo -e "To open a specific directory:"
+echo -e "  ${CYAN}${BOLD}viz --path ~/Videos${RESET}"
+echo -e ""

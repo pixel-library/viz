@@ -13,6 +13,28 @@
 
 ---
 
+## ⚡ Quick One-Line Install
+
+Install Viz instantly on Linux or macOS with a single terminal command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pixel-library/viz/main/install.sh | bash
+```
+
+Once installed, simply run:
+
+```bash
+viz
+```
+
+Or target a specific folder:
+
+```bash
+viz --path ~/Videos
+```
+
+---
+
 ## 🌟 Commercial Features
 
 - **Hacker & VCR Aesthetics**: Custom terminal typography, border styles, and 4 theme modes (**Cyberpunk Cyan**, **Retro Synthwave**, **Amber CRT**, and **Monokai Dark**).
@@ -26,35 +48,20 @@
 
 ---
 
-## ⚡ Quick Start & Installation
+## 📦 Manual Installation Options
 
-### 1. System Dependencies (libmpv)
+### Option A: Install via Pip
 
-- **Ubuntu / Debian**: `sudo apt update && sudo apt install -y mpv libmpv-dev`
-- **Arch Linux**: `sudo pacman -S mpv`
-- **Fedora**: `sudo dnf install mpv mpv-devel`
-- **macOS**: `brew install mpv`
+```bash
+pip install git+https://github.com/pixel-library/viz.git
+```
 
-### 2. Package Installation
-
-Install directly via `pip` locally or as an editable package:
+### Option B: Clone & Install Local Editable Package
 
 ```bash
 git clone https://github.com/pixel-library/viz.git
 cd viz
-pip install .
-```
-
-After installation, run Viz from anywhere using the `viz` command:
-
-```bash
-viz --path ~/Videos
-```
-
-Or run standalone without installation:
-
-```bash
-python main.py
+pip install -e .
 ```
 
 ---
@@ -63,18 +70,18 @@ python main.py
 
 ### How to Update Viz to the Latest Version
 
-If you installed Viz via git clone, pull the latest changes and upgrade the package:
+Run the automated installer command again, or use pip:
+
+```bash
+pip install --upgrade git+https://github.com/pixel-library/viz.git
+```
+
+Or pull latest changes if cloned locally:
 
 ```bash
 cd viz
 git pull origin main
 pip install --upgrade .
-```
-
-Or update directly from GitHub:
-
-```bash
-pip install --upgrade git+https://github.com/pixel-library/viz.git
 ```
 
 ### How to Uninstall Viz
@@ -85,7 +92,7 @@ To remove Viz from your system:
 pip uninstall viz-player
 ```
 
-*(Optional)* To clear all saved configuration, themes, and favorites data:
+*(Optional)* Clear saved configuration, themes, and favorites data:
 
 ```bash
 rm -rf ~/.config/viz
@@ -116,6 +123,7 @@ rm -rf ~/.config/viz
 
 ```
 viz/
+├── install.sh          # One-line automated installer script
 ├── main.py             # Single-file entry point
 ├── pyproject.toml      # Package & distribution specification
 ├── LICENSE             # MIT License
@@ -123,7 +131,7 @@ viz/
 └── viz/
     ├── __init__.py     # Package initialization
     ├── app.py          # Textual UI, themes, ASCII layout & handlers
-    ├── cli.py          # Command-line argument parser
+    ├── cli.py          # Command-line argument parser (viz --path)
     ├── config.py       # Persistent JSON settings & favorites store
     └── engine.py       # Asynchronous MPV wrapper & fallback engine
 ```
