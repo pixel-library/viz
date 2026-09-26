@@ -1,3 +1,30 @@
+Metadata-Version: 2.4
+Name: viz-player
+Version: 1.0.0
+Summary: A stylized, offline, terminal-based media player built with Textual & python-mpv
+Author-email: Pixel Library <info@pixellibrary.org>
+License-Expression: MIT
+Project-URL: Homepage, https://github.com/pixel-library/viz
+Project-URL: Repository, https://github.com/pixel-library/viz.git
+Keywords: tui,terminal,media-player,mpv,vcr,hacker,asyncio
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Console
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Operating System :: MacOS
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Multimedia :: Video :: Display
+Classifier: Topic :: Multimedia :: Sound/Audio :: Players
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: textual>=0.40.0
+Requires-Dist: python-mpv>=1.0.0
+Dynamic: license-file
+
 # Viz — Premium Offline Terminal Media Player
 
 ```

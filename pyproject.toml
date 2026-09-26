@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "viz-player"
+version = "1.0.0"
+description = "A stylized, offline, terminal-based media player built with Textual & python-mpv"
+readme = "README.md"
+authors = [
+    { name = "Pixel Library", email = "info@pixellibrary.org" }
+]
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "textual>=0.40.0",
+    "python-mpv>=1.0.0",
+]
+keywords = ["tui", "terminal", "media-player", "mpv", "vcr", "hacker", "asyncio"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video :: Display",
+    "Topic :: Multimedia :: Sound/Audio :: Players",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["viz*"]
+
+[project.scripts]
+viz = "viz.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/pixel-library/viz"
+Repository = "https://github.com/pixel-library/viz.git"
