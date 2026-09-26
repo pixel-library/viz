@@ -45,6 +45,7 @@ class MediaEngine:
         self.error_message: Optional[str] = None
         self.state = PlaybackState(volume=initial_volume, is_muted=initial_muted)
         self.on_state_change_callback: Optional[Callable[[PlaybackState], None]] = None
+        self._image_process: Optional[subprocess.Popen] = None
 
         if HAS_MPV:
             try:
@@ -167,9 +168,15 @@ class MediaEngine:
         if not TerminalCapabilities.has_display():
             return False
 
+        if self._image_process and self._image_process.poll() is None:
+            try:
+                self._image_process.terminate()
+            except Exception:
+                pass
+
         try:
             abs_path = str(media_item.path.resolve())
-            subprocess.Popen(
+            self._image_process = subprocess.Popen(
                 [
                     "mpv",
                     "--image-display-duration=inf",
@@ -248,6 +255,13 @@ class MediaEngine:
 
     def stop(self) -> None:
         """Stop current playback."""
+        if self._image_process and self._image_process.poll() is None:
+            try:
+                self._image_process.terminate()
+            except Exception:
+                pass
+            self._image_process = None
+
         if self.player:
             try:
                 self.player.stop()
@@ -259,6 +273,13 @@ class MediaEngine:
 
     def terminate(self) -> None:
         """Cleanly terminate MPV instance on application quit."""
+        if self._image_process and self._image_process.poll() is None:
+            try:
+                self._image_process.terminate()
+            except Exception:
+                pass
+            self._image_process = None
+
         if self.player:
             try:
                 self.player.stop()

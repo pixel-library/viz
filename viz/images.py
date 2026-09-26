@@ -111,33 +111,12 @@ class KittyRenderer(ImageRenderer):
 
                 return "".join(escape_parts)
 
-        except Exception as err:
-            # Fall back to block renderer on any Kitty protocol error
-            return BlockRenderer().render(path, max_w=max_w, max_h=max_h, rotation=rotation, zoom=zoom)
+        except Exception:
+            return NativeFrameRenderer().render(path, max_w=max_w, max_h=max_h, rotation=rotation, zoom=zoom)
 
 
-class SixelRenderer(ImageRenderer):
-    """Sixel graphics protocol renderer using PIL and direct encoding."""
-
-    def render(
-        self,
-        path: Path,
-        max_w: int = 70,
-        max_h: int = 22,
-        rotation: int = 0,
-        zoom: float = 1.0,
-    ) -> str:
-        # Sixel encoding is complex; fall back to block renderer for now
-        # but use higher quality settings
-        return BlockRenderer().render(path, max_w=max_w, max_h=max_h, rotation=rotation, zoom=zoom)
-
-
-class BlockRenderer(ImageRenderer):
-    """High-quality truecolor RGB half-block (▀) renderer with LANCZOS resampling.
-
-    Uses PIL's LANCZOS (highest quality) resampling instead of BILINEAR.
-    Uses getdata() for batch pixel access instead of per-pixel getpixel() calls.
-    """
+class NativeFrameRenderer(ImageRenderer):
+    """Clean renderer for native viewer mode — prevents generating half-block/Unicode text-art previews."""
 
     def render(
         self,
@@ -147,58 +126,11 @@ class BlockRenderer(ImageRenderer):
         rotation: int = 0,
         zoom: float = 1.0,
     ) -> str:
-        try:
-            from PIL import Image
-
-            with Image.open(path) as img:
-                # 1. Apply rotation
-                if rotation in (90, 180, 270):
-                    img = img.rotate(-rotation, expand=True)
-
-                img = img.convert("RGB")
-                orig_w, orig_h = img.size
-
-                # 2. Aspect-ratio aware scaling (1 terminal char = ~2 vertical pixels)
-                aspect = orig_w / max(1, orig_h)
-                eff_max_w = max(10, int(max_w * zoom))
-                eff_max_h = max(5, int(max_h * zoom))
-
-                target_w = eff_max_w
-                target_h = int(target_w / (aspect * 2.0))
-
-                if target_h > eff_max_h:
-                    target_h = eff_max_h
-                    target_w = int(target_h * aspect * 2.0)
-
-                target_w = max(8, min(target_w, 400))
-                target_h = max(4, min(target_h, 200))
-
-                pixel_h = target_h * 2
-                # Use LANCZOS for highest quality downsampling
-                resized = img.resize((target_w, pixel_h), Image.Resampling.LANCZOS)
-
-                # Batch pixel access via getdata() — much faster than per-pixel getpixel()
-                pixels = list(resized.getdata())
-
-                lines = []
-                for y in range(0, pixel_h - 1, 2):
-                    line_parts = []
-                    for x in range(target_w):
-                        top_r, top_g, top_b = pixels[y * target_w + x]
-                        bot_r, bot_g, bot_b = pixels[(y + 1) * target_w + x]
-
-                        fg_hex = f"{top_r:02x}{top_g:02x}{top_b:02x}"
-                        bg_hex = f"{bot_r:02x}{bot_g:02x}{bot_b:02x}"
-                        line_parts.append(f"[#{fg_hex} on #{bg_hex}]▀[/]")
-                    lines.append("".join(line_parts))
-
-                return "\n".join(lines)
-        except Exception as err:
-            return f"     [ IMAGE RENDER ERROR: {err} ]"
+        return ""
 
 
 class TextFallbackRenderer(ImageRenderer):
-    """Textual fallback for low-color environments."""
+    """Fallback renderer for minimal environments."""
 
     def render(
         self,
@@ -208,7 +140,7 @@ class TextFallbackRenderer(ImageRenderer):
         rotation: int = 0,
         zoom: float = 1.0,
     ) -> str:
-        return f"[ IMAGE FILE: {path.name} ]\n(Terminal graphics protocol unavailable)"
+        return ""
 
 
 class ImageHelper:
@@ -221,11 +153,7 @@ class ImageHelper:
 
         if method == "kitty":
             return KittyRenderer()
-        elif method == "sixel":
-            return SixelRenderer()
-        elif method in ("timg", "chafa", "block"):
-            return BlockRenderer()
-        return TextFallbackRenderer()
+        return NativeFrameRenderer()
 
     @classmethod
     def get_image_dimensions(cls, path: Path) -> Tuple[int, int, str]:
@@ -263,6 +191,8 @@ class ImageHelper:
     ) -> str:
         return cls.generate_rgb_preview(path, max_w=width, max_h=height, rotation=rotation, zoom=zoom)
 
+    _active_proc: Optional[subprocess.Popen] = None
+
     @classmethod
     def open_native_viewer(cls, path: Path) -> bool:
         """Open image in a native viewer window (for X11/Wayland environments).
@@ -274,9 +204,15 @@ class ImageHelper:
         if not TerminalCapabilities.has_display():
             return False
 
+        if cls._active_proc and cls._active_proc.poll() is None:
+            try:
+                cls._active_proc.terminate()
+            except Exception:
+                pass
+
         try:
             # Try mpv for image viewing (supports all common formats)
-            subprocess.Popen(
+            cls._active_proc = subprocess.Popen(
                 [
                     "mpv",
                     "--image-display-duration=inf",
