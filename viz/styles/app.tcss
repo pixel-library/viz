@@ -1,32 +1,41 @@
-/* Viz Terminal Media Center - Retro Hacker/VCR Orange Theme Stylesheet */
+/* Viz Terminal Media Center - Retro Orange + Off-White Palette Stylesheet */
 
 Screen {
-    background: #0c0905;
-    color: #ffccaa;
+    background: #FFFDF9;
+    color: #1A1A1A;
 }
 
 /* Header Component */
 HeaderWidget {
     align: center top;
-    height: 1;
+    height: 5;
     margin: 0;
     padding: 0;
+    background: #FFF5E8;
+    border-bottom: solid #FF8C00;
+}
+
+#ascii-header {
+    text-align: center;
+    color: #FF7A00;
+    text-style: bold;
+    height: 4;
 }
 
 #top-status-line {
     text-align: center;
-    color: #ff9900;
+    color: #E85D00;
     text-style: bold;
     height: 1;
-    background: #140d06;
+    background: #FFE8D1;
 }
 
 /* Main Navigation Box (Three-Area Layout) */
 .main-box {
-    border: round #ff8800;
+    border: round #FF8C00;
     height: 1fr;
     margin: 0 1;
-    background: #0f0a05;
+    background: #FFFFFF;
 }
 
 .column {
@@ -37,13 +46,13 @@ HeaderWidget {
 #left-column {
     width: 34;
     height: 100%;
-    border-right: solid #33200d;
+    border-right: solid #FFE0C2;
 }
 
 #right-column {
     width: 1fr;
     height: 100%;
-    border-right: solid #33200d;
+    border-right: solid #FFE0C2;
 }
 
 #details-column {
@@ -53,10 +62,10 @@ HeaderWidget {
 
 .column-header {
     text-style: bold;
-    color: #ff8800;
+    color: #E85D00;
     margin-bottom: 0;
     padding-bottom: 0;
-    border-bottom: heavy #ff8800;
+    border-bottom: heavy #FF8C00;
 }
 
 /* Tree Widget Styling */
@@ -64,8 +73,8 @@ HeaderWidget {
     height: 1fr;
     min-height: 8;
     border: none;
-    background: transparent;
-    color: #ffccaa;
+    background: #FFFFFF;
+    color: #1A1A1A;
 }
 
 #folder-tree:focus {
@@ -73,14 +82,14 @@ HeaderWidget {
 }
 
 #folder-tree > .tree--cursor {
-    background: #ff8800;
-    color: #000000;
+    background: #FF8C00;
+    color: #FFFFFF;
     text-style: bold;
 }
 
 /* Section Header in Sidebar */
 .section-header {
-    color: #cc6600;
+    color: #E85D00;
     text-style: bold;
     padding-top: 0;
     margin-bottom: 0;
@@ -91,23 +100,23 @@ HeaderWidget {
     height: auto;
     max-height: 5;
     border: none;
-    background: transparent;
+    background: #FFFFFF;
 }
 
 #storage-list > ListItem, #personal-views-list > ListItem, #system-list > ListItem {
     padding: 0 1;
-    color: #d99966;
-    background: transparent;
+    color: #444444;
+    background: #FFFFFF;
 }
 
 #storage-list > ListItem:hover, #personal-views-list > ListItem:hover, #system-list > ListItem:hover {
-    background: #241407;
-    color: #ff8800;
+    background: #FFF0E0;
+    color: #FF7A00;
 }
 
 #storage-list > ListItem.--highlight, #personal-views-list > ListItem.--highlight, #system-list > ListItem.--highlight {
-    background: #ff8800;
-    color: #000000;
+    background: #FF8C00;
+    color: #FFFFFF;
     text-style: bold;
 }
 
@@ -115,30 +124,56 @@ HeaderWidget {
 #media-list {
     height: 1fr;
     border: none;
-    background: transparent;
+    background: #FFFFFF;
 }
 
 #media-list > ListItem {
     padding: 0 1;
-    color: #ffccaa;
-    background: transparent;
+    color: #1A1A1A;
+    background: #FFFFFF;
 }
 
 #media-list > ListItem:hover {
-    background: #241407;
-    color: #ff8800;
+    background: #FFF0E0;
+    color: #FF7A00;
 }
 
 #media-list > ListItem.--highlight {
-    background: #ff8800;
-    color: #000000;
+    background: #FF8C00;
+    color: #FFFFFF;
     text-style: bold;
 }
 
 /* Details Panel (Right Column) */
 #details-body {
     padding: 1;
-    color: #ffccaa;
+    color: #1A1A1A;
+}
+
+/* Full Terminal Image Viewer Screen */
+#image-screen-container {
+    width: 100%;
+    height: 100%;
+    background: #FFFDF9;
+    padding: 0 1;
+}
+
+#image-ascii-body {
+    width: 100%;
+    height: 1fr;
+    align: center middle;
+    text-align: center;
+    background: #FFFDF9;
+    border: double #FF8C00;
+    margin-bottom: 0;
+}
+
+#image-meta-body {
+    height: 3;
+    text-align: center;
+    color: #1A1A1A;
+    background: #FFF5E8;
+    border-top: solid #FF8C00;
 }
 
 /* Modal Dialog Screens */
@@ -146,51 +181,33 @@ HeaderWidget {
     width: 60;
     height: auto;
     max-height: 32;
-    border: double #ff8800;
-    background: #140d06;
+    border: double #FF8C00;
+    background: #FFFDF9;
     padding: 1 2;
     align: center middle;
+    color: #1A1A1A;
 }
 
 .dialog-header {
-    color: #ff8800;
+    color: #E85D00;
     text-style: bold;
     text-align: center;
-    border-bottom: heavy #ff8800;
+    border-bottom: heavy #FF8C00;
     margin-bottom: 1;
 }
 
 .hint-label {
-    color: #d99966;
+    color: #666666;
     text-align: center;
     margin-top: 1;
-}
-
-#image-dialog {
-    width: 68;
-    height: 28;
-}
-
-#image-ascii-body {
-    height: 15;
-    text-align: center;
-    color: #ff8800;
-    background: #090603;
-    border: solid #33200d;
-    margin-bottom: 1;
-}
-
-#image-meta-body {
-    height: 4;
-    text-align: center;
 }
 
 /* Player Status Bar */
 PlayerStatusWidget {
     height: 3;
     margin: 0 1;
-    border: double #ff8800;
-    background: #140e07;
+    border: double #FF8C00;
+    background: #FFF5E8;
     padding: 0 2;
     align: center middle;
 }
@@ -202,20 +219,20 @@ PlayerStatusWidget {
 }
 
 .bar-status {
-    color: #ff8800;
+    color: #E85D00;
     text-style: bold;
     width: 16;
 }
 
 .bar-title {
-    color: #ffffff;
+    color: #1A1A1A;
     text-style: bold;
     width: 1fr;
     text-align: center;
 }
 
 .bar-scrubber {
-    color: #ff9900;
+    color: #FF7A00;
     width: 38;
     text-align: right;
 }
@@ -227,14 +244,15 @@ ContextualFooter {
 
 #notification-bar {
     height: 1;
-    color: #ff8800;
+    color: #FFFFFF;
     text-style: bold;
     text-align: center;
-    background: #1a1005;
+    background: #FF8C00;
 }
 
 Footer {
-    background: #080503;
-    color: #ff8800;
+    background: #FFF5E8;
+    color: #E85D00;
 }
+
 

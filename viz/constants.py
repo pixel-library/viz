@@ -77,27 +77,27 @@ FAVORITES_FILE = CONFIG_DIR / "favorites.json"
 PLAYLISTS_FILE = CONFIG_DIR / "playlists.json"
 LOG_FILE = CONFIG_DIR / "viz.log"
 
-# Orange Theme Palette
-COLOR_ORANGE_PRIMARY = "#ff8800"
-COLOR_ORANGE_ACCENT = "#ff9900"
-COLOR_ORANGE_DARK = "#cc6600"
-COLOR_BG_DARK = "#0c0905"
-COLOR_BG_SURFACE = "#140d06"
-COLOR_BG_PANEL = "#0f0a05"
-COLOR_BG_HOVER = "#241407"
+# Orange + White Retro Palette
+COLOR_ORANGE_PRIMARY = "#FF7A00"
+COLOR_ORANGE_ACCENT = "#FF8C00"
+COLOR_ORANGE_DEEP = "#E85D00"
+COLOR_BG_LIGHT = "#FFFDF9"
+COLOR_BG_PANEL = "#FFFFFF"
+COLOR_BG_HEADER = "#FFF5E8"
+COLOR_TEXT_PRIMARY = "#1A1A1A"
+COLOR_TEXT_SECONDARY = "#666666"
 
 # Retro Pixel Terminal Icons (Zero Emoji)
 PIXEL_ICON_HOME = "[HOME]"
 PIXEL_ICON_DRIVE = "[DRV]"
-PIXEL_ICON_FOLDER = "[■]"
-PIXEL_ICON_FOLDER_OPEN = "[■▼]"
+PIXEL_ICON_FOLDER = "[▰]"
+PIXEL_ICON_FOLDER_OPEN = "[▰▼]"
 
-# ASCII Header Logo
+# Compact ASCII Header Logo
 ASCII_LOGO = (
     "██╗   ██╗██╗███████╗\n"
-    "██║   ██║██║╚══███╔╝\n"
-    "██║   ██║██║  ███╔╝ \n"
-    "╚██╗ ██╔╝██║ ███╔╝  \n"
-    " ╚████╔╝ ██║███████╗\n"
-    "  ╚═══╝  ╚═╝╚══════╝"
+    "╚██╗ ██╔╝██║╚══███╔╝\n"
+    " ╚████╔╝ ██║  ███╔╝ \n"
+    "  ╚═══╝  ╚═╝  ╚══╝  "
 )
+
