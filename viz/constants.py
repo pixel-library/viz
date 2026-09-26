@@ -86,6 +86,12 @@ COLOR_BG_SURFACE = "#140d06"
 COLOR_BG_PANEL = "#0f0a05"
 COLOR_BG_HOVER = "#241407"
 
+# Retro Pixel Terminal Icons (Zero Emoji)
+PIXEL_ICON_HOME = "[HOME]"
+PIXEL_ICON_DRIVE = "[DRV]"
+PIXEL_ICON_FOLDER = "[■]"
+PIXEL_ICON_FOLDER_OPEN = "[■▼]"
+
 # ASCII Header Logo
 ASCII_LOGO = (
     "██╗   ██╗██╗███████╗\n"

@@ -1,6 +1,7 @@
 """
 Left Sidebar Navigation Widget for Viz Terminal Media Center.
-Implements Real Filesystem Tree navigation, Global Views, and System commands.
+Implements Real Filesystem Tree navigation, Personal Views, and System commands.
+Zero Unicode Emojis — 100% Pixel Terminal Art.
 """
 
 from __future__ import annotations
@@ -12,24 +13,18 @@ from textual.widget import Widget
 from textual.widgets import Label, ListItem, ListView, Tree
 from textual.widgets.tree import TreeNode
 
+from viz.constants import PIXEL_ICON_DRIVE, PIXEL_ICON_FOLDER, PIXEL_ICON_HOME
 from viz.folder_tree import FolderNode
 from viz.library import LibraryManager
 
 
 class SidebarWidget(Widget):
-    """Sidebar widget featuring real filesystem tree and global category views."""
+    """Sidebar widget featuring real filesystem tree and personal views."""
 
-    GLOBAL_CATEGORIES: List[Tuple[str, str]] = [
-        ("all", "ALL MEDIA"),
-        ("movies", "MOVIES"),
-        ("series", "SERIES"),
-        ("music", "MUSIC"),
-        ("images", "IMAGES"),
-        ("videos", "VIDEOS"),
+    PERSONAL_CATEGORIES: List[Tuple[str, str]] = [
         ("continue", "CONTINUE WATCHING"),
         ("recent", "RECENTLY PLAYED"),
         ("favorites", "FAVORITES"),
-        ("queue", "PLAYBACK QUEUE"),
     ]
 
     SYSTEM_CATEGORIES: List[Tuple[str, str]] = [
@@ -40,14 +35,14 @@ class SidebarWidget(Widget):
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="column", id="left-column"):
-            yield Label("📁 REAL FOLDER TREE", classes="column-header", id="tree-header")
+            yield Label("FILESYSTEM", classes="column-header", id="tree-header")
             tree: Tree[Dict] = Tree("LIBRARY ROOTS", id="folder-tree")
             tree.show_root = False
             yield tree
 
-            yield Label("── GLOBAL VIEWS ──", classes="section-header")
-            with ListView(id="global-views-list"):
-                for cat_id, title in self.GLOBAL_CATEGORIES:
+            yield Label("── PERSONAL ──", classes="section-header")
+            with ListView(id="personal-views-list"):
+                for cat_id, title in self.PERSONAL_CATEGORIES:
                     yield ListItem(Label(f"  {title}"), id=f"cat-{cat_id}")
 
             yield Label("── SYSTEM ──", classes="section-header")
@@ -55,8 +50,8 @@ class SidebarWidget(Widget):
                 for cat_id, title in self.SYSTEM_CATEGORIES:
                     yield ListItem(Label(f"  {title}"), id=f"sys-{cat_id}")
 
-    def update_tree_and_counts(self, library: LibraryManager, queue_count: int = 0) -> None:
-        """Populate the filesystem Tree widget with real folder nodes and update global counts."""
+    def update_tree_and_counts(self, library: LibraryManager) -> None:
+        """Populate the filesystem Tree widget with real folder nodes and update personal counts."""
         tree: Tree[Dict] = self.query_one("#folder-tree", Tree)
         tree.clear()
 
@@ -66,19 +61,12 @@ class SidebarWidget(Widget):
         tree.root.expand()
 
         counts = {
-            "all": library.all_count,
-            "movies": library.movies_count,
-            "series": library.series_count,
-            "music": library.music_count,
-            "images": library.images_count,
-            "videos": library.videos_count,
             "continue": library.continue_count,
             "recent": library.recent_count,
             "favorites": library.favorites_count,
-            "queue": queue_count,
         }
 
-        for cat_id, title in self.GLOBAL_CATEGORIES:
+        for cat_id, title in self.PERSONAL_CATEGORIES:
             try:
                 item = self.query_one(f"#cat-{cat_id}", ListItem)
                 label = item.query_one(Label)
@@ -88,7 +76,7 @@ class SidebarWidget(Widget):
                 pass
 
     def _add_folder_to_tree(self, parent_node: TreeNode[Dict], folder: FolderNode) -> None:
-        """Recursively add FolderNode to Textual Tree with detailed media breakdown."""
+        """Recursively add FolderNode to Textual Tree using pixel terminal icons."""
         counts_parts = []
         if folder.video_count > 0:
             counts_parts.append(f"V:{folder.video_count}")
@@ -100,12 +88,17 @@ class SidebarWidget(Widget):
         breakdown = " ".join(counts_parts) if counts_parts else str(folder.total_media_count)
         count_tag = f"[{breakdown}]" if folder.total_media_count > 0 else ""
 
-        if folder.name.startswith("🏠") or folder.name.startswith("💾"):
-            icon_str = ""
-        else:
-            icon_str = "📁 "
+        # Remove emojis & set pixel icons
+        clean_name = folder.name.replace("🏠", "").replace("💾", "").replace("📁", "").strip()
 
-        label_text = f"{icon_str}{folder.name} {count_tag}"
+        if "Home" in folder.name or "home" in folder.name.lower():
+            icon_str = f"{PIXEL_ICON_HOME} "
+        elif "Volume" in folder.name or "GB" in folder.name:
+            icon_str = f"{PIXEL_ICON_DRIVE} "
+        else:
+            icon_str = f"{PIXEL_ICON_FOLDER} "
+
+        label_text = f"{icon_str}{clean_name} {count_tag}"
 
         node = parent_node.add(label_text, data={"type": "folder", "folder": folder})
         node.expand()
