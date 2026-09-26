@@ -1,0 +1,19 @@
+# Python / Virtual Environment
+.venv/
+venv/
+ENV/
+__pycache__/
+*.py[cod]
+
+# Local media test files
+Media/
+*.mp4
+*.mkv
+*.mp3
+*.flac
+*.wav
+
+# IDE / System
+.vscode/
+.idea/
+.DS_Store
