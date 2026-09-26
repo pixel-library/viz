@@ -4,9 +4,12 @@ venv/
 ENV/
 __pycache__/
 *.py[cod]
+*.egg-info/
+*.egg
 
 # Local media test files
 Media/
+media/
 *.mp4
 *.mkv
 *.mp3
