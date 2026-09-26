@@ -1,6 +1,12 @@
 /* Viz Terminal Media Center — Professional Orange + White Theme Stylesheet */
 /* Professional, keyboard-first design with Orange (#FF8800) accent palette */
 
+* {
+    scrollbar-size-vertical: 0;
+    scrollbar-size-horizontal: 0;
+    scrollbar-size: 0 0;
+}
+
 Screen {
     background: #FFFDF8;
     color: #1A1A1A;
@@ -41,7 +47,7 @@ HeaderWidget {
 }
 
 #left-column {
-    width: 36;
+    width: 34;
     height: 100%;
     border-right: solid #FFE1B8;
 }
@@ -53,7 +59,7 @@ HeaderWidget {
 }
 
 #details-column {
-    width: 34;
+    width: 36;
     height: 100%;
 }
 
@@ -73,6 +79,9 @@ HeaderWidget {
     border: none;
     background: #FFFFFF;
     color: #1A1A1A;
+    scrollbar-size-vertical: 0;
+    scrollbar-size-horizontal: 0;
+    scrollbar-size: 0 0;
 }
 
 #folder-tree:focus {
@@ -104,6 +113,7 @@ HeaderWidget {
     max-height: 5;
     border: none;
     background: #FFFFFF;
+    scrollbar-size: 0 0;
 }
 
 #storage-list > ListItem, #personal-views-list > ListItem, #system-list > ListItem {
@@ -129,6 +139,9 @@ HeaderWidget {
     height: 1fr;
     border: none;
     background: #FFFFFF;
+    scrollbar-size-vertical: 0;
+    scrollbar-size-horizontal: 0;
+    scrollbar-size: 0 0;
 }
 
 #media-list > ListItem {
@@ -151,8 +164,11 @@ HeaderWidget {
 /* ═══════════════════════════════════════ DETAILS PANEL ═════════════════════════════════ */
 
 #details-body {
-    padding: 1;
+    padding: 1 0;
     color: #1A1A1A;
+    scrollbar-size-vertical: 0;
+    scrollbar-size-horizontal: 0;
+    scrollbar-size: 0 0;
 }
 
 /* ═══════════════════════════════════════ IMAGE VIEWER ══════════════════════════════════ */
@@ -172,7 +188,8 @@ HeaderWidget {
     background: #FFFDF8;
     border: double #FF8800;
     margin-bottom: 0;
-    overflow-y: auto;
+    overflow-y: hidden;
+    scrollbar-size: 0 0;
 }
 
 #image-meta-body {
@@ -199,6 +216,7 @@ HeaderWidget {
     text-align: center;
     background: #FFFDF8;
     border: double #FF8800;
+    scrollbar-size: 0 0;
 }
 
 #video-status-bar {
@@ -231,6 +249,7 @@ HeaderWidget {
     text-align: center;
     background: #FFFDF8;
     border: double #FF8800;
+    scrollbar-size: 0 0;
 }
 
 #audio-info-footer {

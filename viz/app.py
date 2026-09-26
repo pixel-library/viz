@@ -101,6 +101,8 @@ class VizApp(App):
         self.is_scanning: bool = False
         self.selected_folder: Optional[FolderNode] = None
         self.folder_filter: str = "ALL"
+        self.last_selected_item: Optional[MediaItem] = None
+        self.last_selected_index: Optional[int] = None
 
     def compose(self) -> ComposeResult:
         yield HeaderWidget()
@@ -179,6 +181,8 @@ class VizApp(App):
 
             if self.selected_folder:
                 media_list.render_folder(self.selected_folder, active_filter=self.folder_filter)
+                if self.last_selected_item:
+                    media_list.restore_selection(item=self.last_selected_item, index=self.last_selected_index)
                 details.show_folder(self.selected_folder)
             elif self.active_category == "continue":
                 media_list.render_media_items("CONTINUE WATCHING", self.library.get_continue_watching())
@@ -291,6 +295,12 @@ class VizApp(App):
 
     def play_media_item(self, item: MediaItem) -> None:
         """Play target MediaItem or launch Virtual Environment via MediaRouter."""
+        self.last_selected_item = item
+        try:
+            media_list = self.query_one(MediaListWidget)
+            self.last_selected_index = media_list.get_selected_index()
+        except Exception:
+            pass
         MediaRouter.open_media(self, item)
 
 

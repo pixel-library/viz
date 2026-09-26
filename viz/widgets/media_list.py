@@ -150,3 +150,17 @@ class MediaListWidget(Widget):
         list_view = self.query_one("#media-list", ListView)
         return list_view.index
 
+    def restore_selection(self, item: Optional[MediaItem] = None, index: Optional[int] = None) -> None:
+        """Highlight target item or index in ListView."""
+        try:
+            list_view = self.query_one("#media-list", ListView)
+            if item:
+                for idx, child in enumerate(list_view.children):
+                    if isinstance(child, MediaListItem) and child.media_data.path == item.path:
+                        list_view.index = idx
+                        return
+            if index is not None and 0 <= index < len(list_view.children):
+                list_view.index = index
+        except Exception:
+            pass
+

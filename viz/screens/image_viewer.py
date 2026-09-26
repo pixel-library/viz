@@ -72,7 +72,7 @@ class ImageViewerScreen(ModalScreen):
         item = self.folder_images[self.current_index]
 
         header = self.query_one("#image-header", Label)
-        header.update(f"VIZ // IMAGE VIEWER  [{self.current_index + 1}/{len(self.folder_images)}]")
+        header.update(f"  ◆ VIZ  //  IMAGE VIEWER  [{self.current_index + 1}/{len(self.folder_images)}]")
 
         # Dynamic size calculation from terminal window
         term_w = getattr(self.app.size, "width", 80)
@@ -124,6 +124,9 @@ class ImageViewerScreen(ModalScreen):
     def action_prev_image(self) -> None:
         if len(self.folder_images) > 1:
             self.current_index = (self.current_index - 1) % len(self.folder_images)
+            self.current_item = self.folder_images[self.current_index]
+            if hasattr(self.app, "last_selected_item"):
+                self.app.last_selected_item = self.current_item
             self.update_display()
             if self.native_mode:
                 self.action_open_native()
@@ -131,6 +134,9 @@ class ImageViewerScreen(ModalScreen):
     def action_next_image(self) -> None:
         if len(self.folder_images) > 1:
             self.current_index = (self.current_index + 1) % len(self.folder_images)
+            self.current_item = self.folder_images[self.current_index]
+            if hasattr(self.app, "last_selected_item"):
+                self.app.last_selected_item = self.current_item
             self.update_display()
             if self.native_mode:
                 self.action_open_native()
