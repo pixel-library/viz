@@ -295,9 +295,7 @@ class VizApp(App):
         super().__init__()
         # Instantiate real native python-mpv player
         self.player = mpv.MPV(
-            video=True,
             keep_open=True,
-            input_default_key_bindings=False,
             osc=True,
             title="Viz Media Window",
         )

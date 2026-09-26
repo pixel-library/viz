@@ -14,9 +14,7 @@ class MediaEngine:
 
     def __init__(self) -> None:
         self.player = mpv.MPV(
-            video=True,
             keep_open=True,
-            input_default_key_bindings=False,
             osc=True,
             title="Viz Media Output",
         )

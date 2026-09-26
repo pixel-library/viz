@@ -216,9 +216,7 @@ class VizApp(App):
     def __init__(self, initial_dir: Optional[str] = None) -> None:
         super().__init__()
         self.player = mpv.MPV(
-            video=True,
             keep_open=True,
-            input_default_key_bindings=False,
             osc=True,
             title="Viz Media Window",
         )
