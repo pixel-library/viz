@@ -64,11 +64,26 @@ fi
 echo -e "${CYAN} Installing Viz Python Package via Pip...${RESET}"
 python3 -m pip install --upgrade --user git+https://github.com/pixel-library/viz.git
 
-# 4. Symlink or Ensure ~/.local/bin is in PATH
+# 4. Create robust launcher wrapper to prevent Conda library conflicts
 USER_BIN="$HOME/.local/bin"
-if [ -f "$USER_BIN/viz" ]; then
-    sudo ln -sf "$USER_BIN/viz" /usr/local/bin/viz 2>/dev/null || true
+mkdir -p "$USER_BIN"
+
+cat << 'EOF' > "$USER_BIN/viz"
+#!/usr/bin/env bash
+if command -v /usr/bin/python3 &> /dev/null; then
+    exec /usr/bin/python3 -m viz.cli "$@"
+else
+    exec python3 -m viz.cli "$@"
 fi
+EOF
+chmod +x "$USER_BIN/viz"
+
+# Copy to conda bin if active to override conda entrypoint
+if [ -n "$CONDA_PREFIX" ] && [ -d "$CONDA_PREFIX/bin" ]; then
+    cp "$USER_BIN/viz" "$CONDA_PREFIX/bin/viz" 2>/dev/null || true
+fi
+
+sudo ln -sf "$USER_BIN/viz" /usr/local/bin/viz 2>/dev/null || true
 
 if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
     echo -e "${YELLOW} Adding $USER_BIN to your PATH...${RESET}"
