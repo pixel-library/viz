@@ -8,16 +8,9 @@ Screen {
 /* Header Component */
 HeaderWidget {
     align: center top;
-    height: 7;
-    margin-top: 1;
-    margin-bottom: 0;
-}
-
-#ascii-header {
-    text-align: center;
-    color: #ff8800;
-    text-style: bold;
-    height: 6;
+    height: 1;
+    margin: 0;
+    padding: 0;
 }
 
 #top-status-line {
@@ -28,58 +21,40 @@ HeaderWidget {
     background: #140d06;
 }
 
-/* Search Component */
-SearchWidget {
-    align: center top;
-    height: 3;
-    margin-top: 0;
-    margin-bottom: 1;
-}
-
-#search-input {
-    width: 76;
-    border: tall #ff8800;
-    background: #140d06;
-    color: #ff8800;
-    padding: 0 1;
-}
-
-#search-input:focus {
-    border: double #ff9900;
-    background: #1c1208;
-}
-
 /* Main Navigation Box (Three-Area Layout) */
 .main-box {
     border: round #ff8800;
     height: 1fr;
-    margin: 0 2;
+    margin: 0 1;
     background: #0f0a05;
 }
 
 .column {
     height: 100%;
-    padding: 1 1;
+    padding: 0 1;
 }
 
 #left-column {
     width: 34;
+    height: 100%;
     border-right: solid #33200d;
 }
 
 #right-column {
     width: 1fr;
+    height: 100%;
     border-right: solid #33200d;
 }
 
 #details-column {
     width: 34;
+    height: 100%;
 }
 
 .column-header {
     text-style: bold;
     color: #ff8800;
-    margin-bottom: 1;
+    margin-bottom: 0;
     padding-bottom: 0;
     border-bottom: heavy #ff8800;
 }
@@ -87,6 +62,7 @@ SearchWidget {
 /* Tree Widget Styling */
 #folder-tree {
     height: 1fr;
+    min-height: 8;
     border: none;
     background: transparent;
     color: #ffccaa;
@@ -106,30 +82,30 @@ SearchWidget {
 .section-header {
     color: #cc6600;
     text-style: bold;
-    padding-top: 1;
+    padding-top: 0;
     margin-bottom: 0;
 }
 
-/* Global & System Lists */
-#global-views-list, #system-list {
+/* Sidebar Lists */
+#storage-list, #personal-views-list, #system-list {
     height: auto;
-    max-height: 12;
+    max-height: 5;
     border: none;
     background: transparent;
 }
 
-#global-views-list > ListItem, #system-list > ListItem {
+#storage-list > ListItem, #personal-views-list > ListItem, #system-list > ListItem {
     padding: 0 1;
     color: #d99966;
     background: transparent;
 }
 
-#global-views-list > ListItem:hover, #system-list > ListItem:hover {
+#storage-list > ListItem:hover, #personal-views-list > ListItem:hover, #system-list > ListItem:hover {
     background: #241407;
     color: #ff8800;
 }
 
-#global-views-list > ListItem.--highlight, #system-list > ListItem.--highlight {
+#storage-list > ListItem.--highlight, #personal-views-list > ListItem.--highlight, #system-list > ListItem.--highlight {
     background: #ff8800;
     color: #000000;
     text-style: bold;
@@ -212,7 +188,7 @@ SearchWidget {
 /* Player Status Bar */
 PlayerStatusWidget {
     height: 3;
-    margin: 0 2;
+    margin: 0 1;
     border: double #ff8800;
     background: #140e07;
     padding: 0 2;
@@ -261,3 +237,4 @@ Footer {
     background: #080503;
     color: #ff8800;
 }
+

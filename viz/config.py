@@ -40,6 +40,7 @@ class ConfigManager:
             discovered = []
             home = Path.home()
             candidates = [
+                home,
                 home / "Desktop",
                 home / "Documents",
                 home / "Downloads",
@@ -52,22 +53,27 @@ class ConfigManager:
             ]
             for cand in candidates:
                 if cand.exists() and cand.is_dir():
-                    discovered.append(str(cand.resolve()))
+                    res = str(cand.resolve())
+                    if res not in discovered:
+                        discovered.append(res)
 
             # Discover mounted secondary storage volumes
             try:
                 from viz.mounts import MountsManager
                 for m_path, _ in MountsManager.get_accessible_mounts():
                     if m_path.exists() and m_path.is_dir():
-                        discovered.append(str(m_path.resolve()))
+                        res = str(m_path.resolve())
+                        if res not in discovered:
+                            discovered.append(res)
             except Exception:
                 pass
 
             if not discovered and self.media_path.exists():
                 discovered.append(str(self.media_path))
 
-            self.data["library_paths"] = discovered or [str(Path.cwd())]
+            self.data["library_paths"] = discovered or [str(home.resolve())]
             self.save()
+
 
     def load(self) -> None:
         """Load settings from JSON file. Recovers safely if corrupted."""

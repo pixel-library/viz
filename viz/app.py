@@ -35,7 +35,6 @@ from viz.widgets.footer import ContextualFooter
 from viz.widgets.header import HeaderWidget
 from viz.widgets.media_list import FolderListItem, MediaListItem, MediaListWidget
 from viz.widgets.player_status import PlayerStatusWidget
-from viz.widgets.search import SearchWidget
 from viz.widgets.sidebar import SidebarWidget
 
 
@@ -70,7 +69,6 @@ class VizApp(App):
         Binding("2", "filter_videos", "Filter Videos", show=False),
         Binding("3", "filter_audio", "Filter Audio", show=False),
         Binding("4", "filter_images", "Filter Images", show=False),
-        Binding("slash", "focus_search", "SEARCH", show=True),
         Binding("r", "refresh_library", "Refresh", show=False),
         Binding("question_mark", "show_help", "HELP", show=True),
         Binding("q", "quit_app", "QUIT", show=True),
@@ -97,14 +95,12 @@ class VizApp(App):
 
         # Application State
         self.active_category: str = "folder"
-        self.active_search_query: str = ""
         self.is_scanning: bool = False
         self.selected_folder: Optional[FolderNode] = None
         self.folder_filter: str = "ALL"
 
     def compose(self) -> ComposeResult:
         yield HeaderWidget()
-        yield SearchWidget()
 
         with Horizontal(classes="main-box"):
             yield SidebarWidget()
@@ -178,16 +174,6 @@ class VizApp(App):
                 details.show_empty("Scanning library directories...")
                 return
 
-            if self.active_search_query:
-                query = self.active_search_query.lower()
-                matching = [
-                    m for m in self.library.all_items
-                    if query in m.name.lower() or query in (m.title or "").lower() or query in (m.artist or "").lower()
-                ]
-                media_list.render_media_items(f"SEARCH: '{self.active_search_query}'", matching)
-                details.show_empty(f"Search: '{self.active_search_query}' ({len(matching)} matches)")
-                return
-
             if self.selected_folder:
                 media_list.render_folder(self.selected_folder, active_filter=self.folder_filter)
                 details.show_folder(self.selected_folder)
@@ -234,12 +220,6 @@ class VizApp(App):
                     details.show_media(data["media"])
             except Exception:
                 pass
-
-    def on_input_changed(self, event: Input.Changed) -> None:
-        """Handle real-time search typing."""
-        self.active_search_query = event.value.strip()
-        self.selected_folder = None
-        self.update_ui_views()
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle selection in Personal views, Storage drives, System list, or Media list."""
@@ -458,12 +438,6 @@ class VizApp(App):
         self.update_ui_views()
         self.notify("Filter: IMAGES", title="Folder View")
 
-    def action_focus_search(self) -> None:
-        search_w = self.query_one(SearchWidget)
-        search_w.focus_input()
-        footer = self.query_one(ContextualFooter)
-        footer.set_mode_hint("search")
-
     def action_refresh_library(self) -> None:
         self.notify("Rescanning library directories...", title="Refresh")
         self.refresh_library()
@@ -484,12 +458,6 @@ class VizApp(App):
                 if self.library.folder_roots:
                     self.selected_folder = self.library.folder_roots[0]
             self.update_ui_views()
-        elif self.active_search_query:
-            search_w = self.query_one(SearchWidget)
-            search_w.clear_input()
-            self.active_search_query = ""
-            self.update_ui_views()
-            self.set_focus(None)
         else:
             self.set_focus(None)
 
