@@ -134,9 +134,9 @@ class MediaItem:
     @property
     def ascii_icon(self) -> str:
         if self.media_type == MediaType.AUDIO:
-            return "[♪]"
+            return "[AUD]"
         elif self.media_type == MediaType.VIDEO:
-            return "[V]"
+            return "[VID]"
         elif self.media_type == MediaType.IMAGE:
             return "[IMG]"
         return "[FILE]"

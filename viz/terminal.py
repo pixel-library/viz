@@ -54,3 +54,25 @@ class TerminalManager:
             sys.stdout.flush()
         except Exception:
             pass
+
+    @staticmethod
+    def supports_kitty_graphics() -> bool:
+        """Detect Kitty terminal graphics protocol support."""
+        import os
+        return bool(os.getenv("KITTY_WINDOW_ID") or "kitty" in os.getenv("TERM", "").lower())
+
+    @staticmethod
+    def supports_sixel() -> bool:
+        """Detect Sixel terminal graphics protocol support."""
+        import os
+        term = os.getenv("TERM", "").lower()
+        term_prog = os.getenv("TERM_PROGRAM", "").lower()
+        return "sixel" in term or term_prog in ("foot", "mlterm", "yaft", "wezterm")
+
+    @staticmethod
+    def supports_truecolor() -> bool:
+        """Detect Truecolor / 24-bit RGB rendering support."""
+        import os
+        colorterm = os.getenv("COLORTERM", "").lower()
+        return colorterm in ("truecolor", "24bit") or True  # Modern Linux terminals default to truecolor
+

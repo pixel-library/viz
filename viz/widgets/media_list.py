@@ -12,7 +12,7 @@ from textual.containers import Vertical
 from textual.widget import Widget
 from textual.widgets import Label, ListItem, ListView
 
-from viz.constants import PIXEL_ICON_FOLDER
+from viz.constants import get_folder_symbol
 from viz.folder_tree import FolderNode
 from viz.models import MediaItem, MediaType
 from viz.widgets.player_status import PlayerStatusWidget
@@ -68,7 +68,8 @@ class MediaListWidget(Widget):
 
     def render_folder(self, folder: FolderNode, active_filter: str = "ALL") -> None:
         """Render the contents of a real filesystem folder."""
-        self._update_header(f"{folder.path}", folder.total_media_count)
+        folder_sym = get_folder_symbol()
+        self._update_header(f"{folder_sym} {folder.path}", folder.total_media_count)
         list_view = self.query_one("#media-list", ListView)
         list_view.clear()
 
@@ -91,7 +92,7 @@ class MediaListWidget(Widget):
             for sf in folder.subfolders:
                 cnt_tag = f"[{sf.total_media_count}]" if sf.total_media_count > 0 else ""
                 clean_sf_name = sf.name.replace("📁", "").replace("🏠", "").replace("💾", "").strip()
-                list_view.append(FolderListItem(f"{PIXEL_ICON_FOLDER} {clean_sf_name} {cnt_tag}", folder=sf))
+                list_view.append(FolderListItem(f"{folder_sym} {clean_sf_name:<36} {cnt_tag}", folder=sf))
 
         # 2. Classified Files second
         if filtered_files:
@@ -102,24 +103,28 @@ class MediaListWidget(Widget):
             if videos:
                 list_view.append(HeaderListItem("VIDEO"))
                 for item in videos:
-                    dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else ""
+                    dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else "--:--"
+                    ext_str = item.extension.upper().lstrip(".")
                     fav_str = " ★" if item.favorite else ""
-                    list_view.append(MediaListItem(f"[V] {item.display_name}{fav_str} ({dur_str})", media_item=item))
+                    list_view.append(MediaListItem(f"[VID] {item.name[:32]:<32}  {ext_str:<6}  {dur_str}{fav_str}", media_item=item))
 
             if audio:
                 list_view.append(HeaderListItem("AUDIO"))
                 for item in audio:
-                    dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else ""
-                    artist_str = f" - {item.artist}" if item.artist else ""
+                    dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else "--:--"
+                    ext_str = item.extension.upper().lstrip(".")
+                    artist_str = f"{item.artist[:16]}" if item.artist else ""
                     fav_str = " ★" if item.favorite else ""
-                    list_view.append(MediaListItem(f"[♪] {item.title or item.display_name}{fav_str}{artist_str} ({dur_str})", media_item=item))
+                    list_view.append(MediaListItem(f"[AUD] {item.name[:30]:<30}  {ext_str:<6}  {artist_str:<16}  {dur_str}{fav_str}", media_item=item))
 
             if images:
                 list_view.append(HeaderListItem("IMAGES"))
                 for item in images:
-                    dim_str = f" ({item.image_width}x{item.image_height})" if item.image_width > 0 else ""
+                    size_kb = f"{int(item.file_size / 1024)} KB"
+                    ext_str = item.image_format or item.extension.upper().lstrip(".")
+                    dim_str = f"{item.image_width}×{item.image_height}" if item.image_width > 0 else ""
                     fav_str = " ★" if item.favorite else ""
-                    list_view.append(MediaListItem(f"[IMG] {item.name}{fav_str}{dim_str}", media_item=item))
+                    list_view.append(MediaListItem(f"[IMG] {item.name[:32]:<32}  {ext_str:<6}  {size_kb:<10}  {dim_str}{fav_str}", media_item=item))
 
     def render_media_items(self, title: str, items: List[MediaItem]) -> None:
         """Render a list of MediaItems (e.g. Recently Played, Favorites, Continue Watching)."""
@@ -135,12 +140,13 @@ class MediaListWidget(Widget):
             dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else ""
             fav_str = " ★" if item.favorite else ""
             icon = item.ascii_icon
-            list_view.append(MediaListItem(f"{icon} {item.name}{fav_str} ({dur_str})", media_item=item))
+            list_view.append(MediaListItem(f"{icon} {item.name:<32} {dur_str}{fav_str}", media_item=item))
 
     def _update_header(self, title: str, count: int) -> None:
         header_label = self.query_one("#browse-header", Label)
-        header_label.update(f"[ {title} ({count}) ]")
+        header_label.update(f"{title} [{count}]")
 
     def get_selected_index(self) -> Optional[int]:
         list_view = self.query_one("#media-list", ListView)
         return list_view.index
+

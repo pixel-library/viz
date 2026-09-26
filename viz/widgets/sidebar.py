@@ -13,7 +13,7 @@ from textual.widget import Widget
 from textual.widgets import Label, ListItem, ListView, Tree
 from textual.widgets.tree import TreeNode
 
-from viz.constants import PIXEL_ICON_DRIVE, PIXEL_ICON_FOLDER, PIXEL_ICON_HOME
+from viz.constants import PIXEL_ICON_DRIVE, get_folder_symbol
 from viz.folder_tree import FolderNode
 from viz.library import LibraryManager
 from viz.mounts import MountsManager
@@ -69,11 +69,12 @@ class SidebarWidget(Widget):
             storage_list = self.query_one("#storage-list", ListView)
             storage_list.clear()
             mounts = MountsManager.get_accessible_mounts()
+            folder_sym = get_folder_symbol()
             if mounts:
                 for mount_path, label_str in mounts:
-                    storage_list.append(ListItem(Label(f" {PIXEL_ICON_DRIVE} {label_str}"), id=f"drv-{hash(str(mount_path))}"))
+                    storage_list.append(ListItem(Label(f" {folder_sym} {label_str}"), id=f"drv-{hash(str(mount_path))}"))
             else:
-                storage_list.append(ListItem(Label(f" {PIXEL_ICON_DRIVE} Local Disk"), disabled=True))
+                storage_list.append(ListItem(Label(f" {folder_sym} Local Disk"), disabled=True))
         except Exception:
             pass
 
@@ -107,14 +108,10 @@ class SidebarWidget(Widget):
 
         clean_name = folder.name.replace("🏠", "").replace("💾", "").replace("📁", "").strip()
 
-        if "Home" in folder.name or "home" in folder.name.lower():
-            icon_str = f"{PIXEL_ICON_HOME} "
-        elif "Volume" in folder.name or "GB" in folder.name:
-            icon_str = f"{PIXEL_ICON_DRIVE} "
-        else:
-            icon_str = f"{PIXEL_ICON_FOLDER} "
+        folder_sym = get_folder_symbol()
+        icon_str = f"{folder_sym} "
 
-        label_text = f"{icon_str}{clean_name} {count_tag}"
+        label_text = f"{icon_str}{clean_name} {count_tag}".strip()
 
         node = parent_node.add(label_text, data={"type": "folder", "folder": folder})
         node.expand()
@@ -123,9 +120,10 @@ class SidebarWidget(Widget):
         for sf in folder.subfolders:
             self._add_folder_to_tree(node, sf)
 
-        # 2. Media Files inside folder (Requirement #5)
+        # 2. Media Files inside folder
         for media_item in folder.media_files:
             icon = media_item.ascii_icon
             file_label = f"  {icon} {media_item.name}"
             node.add_leaf(file_label, data={"type": "media", "media": media_item})
+
 
