@@ -1,6 +1,6 @@
 """
 Left Sidebar Navigation Widget for Viz Terminal Media Center.
-Implements Real Filesystem Tree navigation, Personal Views, and System commands.
+Implements Real Filesystem Tree navigation (Folders + Media Files), Mounted Storage, and Personal Views.
 Zero Unicode Emojis — 100% Pixel Terminal Art.
 """
 
@@ -16,10 +16,11 @@ from textual.widgets.tree import TreeNode
 from viz.constants import PIXEL_ICON_DRIVE, PIXEL_ICON_FOLDER, PIXEL_ICON_HOME
 from viz.folder_tree import FolderNode
 from viz.library import LibraryManager
+from viz.mounts import MountsManager
 
 
 class SidebarWidget(Widget):
-    """Sidebar widget featuring real filesystem tree and personal views."""
+    """Sidebar widget featuring real filesystem tree (folders + files), mounted drives, and personal views."""
 
     PERSONAL_CATEGORIES: List[Tuple[str, str]] = [
         ("continue", "CONTINUE WATCHING"),
@@ -40,6 +41,9 @@ class SidebarWidget(Widget):
             tree.show_root = False
             yield tree
 
+            yield Label("── STORAGE ──", classes="section-header")
+            yield ListView(id="storage-list")
+
             yield Label("── PERSONAL ──", classes="section-header")
             with ListView(id="personal-views-list"):
                 for cat_id, title in self.PERSONAL_CATEGORIES:
@@ -51,7 +55,7 @@ class SidebarWidget(Widget):
                     yield ListItem(Label(f"  {title}"), id=f"sys-{cat_id}")
 
     def update_tree_and_counts(self, library: LibraryManager) -> None:
-        """Populate the filesystem Tree widget with real folder nodes and update personal counts."""
+        """Populate the filesystem Tree widget with real folders + media files, update drives and personal counts."""
         tree: Tree[Dict] = self.query_one("#folder-tree", Tree)
         tree.clear()
 
@@ -59,6 +63,19 @@ class SidebarWidget(Widget):
             self._add_folder_to_tree(tree.root, root_folder)
 
         tree.root.expand()
+
+        # Update Mounted Storage Drives
+        try:
+            storage_list = self.query_one("#storage-list", ListView)
+            storage_list.clear()
+            mounts = MountsManager.get_accessible_mounts()
+            if mounts:
+                for mount_path, label_str in mounts:
+                    storage_list.append(ListItem(Label(f" {PIXEL_ICON_DRIVE} {label_str}"), id=f"drv-{hash(str(mount_path))}"))
+            else:
+                storage_list.append(ListItem(Label(f" {PIXEL_ICON_DRIVE} Local Disk"), disabled=True))
+        except Exception:
+            pass
 
         counts = {
             "continue": library.continue_count,
@@ -76,7 +93,7 @@ class SidebarWidget(Widget):
                 pass
 
     def _add_folder_to_tree(self, parent_node: TreeNode[Dict], folder: FolderNode) -> None:
-        """Recursively add FolderNode to Textual Tree using pixel terminal icons."""
+        """Recursively add FolderNode and its MediaItems to Textual Tree using pixel terminal icons."""
         counts_parts = []
         if folder.video_count > 0:
             counts_parts.append(f"V:{folder.video_count}")
@@ -88,7 +105,6 @@ class SidebarWidget(Widget):
         breakdown = " ".join(counts_parts) if counts_parts else str(folder.total_media_count)
         count_tag = f"[{breakdown}]" if folder.total_media_count > 0 else ""
 
-        # Remove emojis & set pixel icons
         clean_name = folder.name.replace("🏠", "").replace("💾", "").replace("📁", "").strip()
 
         if "Home" in folder.name or "home" in folder.name.lower():
@@ -103,5 +119,13 @@ class SidebarWidget(Widget):
         node = parent_node.add(label_text, data={"type": "folder", "folder": folder})
         node.expand()
 
+        # 1. Subfolders
         for sf in folder.subfolders:
             self._add_folder_to_tree(node, sf)
+
+        # 2. Media Files inside folder (Requirement #5)
+        for media_item in folder.media_files:
+            icon = media_item.ascii_icon
+            file_label = f"  {icon} {media_item.name}"
+            node.add_leaf(file_label, data={"type": "media", "media": media_item})
+

@@ -22,6 +22,7 @@ from viz.folder_tree import FolderNode
 from viz.history import HistoryManager
 from viz.library import LibraryManager
 from viz.models import LoopMode, MediaItem, MediaType, PlaybackState, PlaybackStatus
+from viz.mounts import MountsManager
 from viz.queue import PlaybackQueue
 from viz.scanner import MediaScanner
 from viz.screens.help import HelpScreen
@@ -211,20 +212,26 @@ class VizApp(App):
             pass
 
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
-        """Handle selection of folder node in Filesystem Tree."""
+        """Handle selection of folder or media node in Filesystem Tree."""
         data = event.node.data
-        if data and data.get("type") == "folder":
-            self.selected_folder = data["folder"]
-            self.active_category = "folder"
-            self.update_ui_views()
+        if data:
+            if data.get("type") == "folder":
+                self.selected_folder = data["folder"]
+                self.active_category = "folder"
+                self.update_ui_views()
+            elif data.get("type") == "media":
+                self.play_media_item(data["media"])
 
     def on_tree_node_highlighted(self, event: Tree.NodeHighlighted) -> None:
-        """Real-time details update when navigating tree nodes."""
+        """Real-time details update when navigating tree nodes (Folders & Media Files)."""
         data = event.node.data
-        if data and data.get("type") == "folder":
+        if data:
             try:
                 details = self.query_one(DetailsWidget)
-                details.show_folder(data["folder"])
+                if data.get("type") == "folder":
+                    details.show_folder(data["folder"])
+                elif data.get("type") == "media":
+                    details.show_media(data["media"])
             except Exception:
                 pass
 
@@ -235,13 +242,25 @@ class VizApp(App):
         self.update_ui_views()
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
-        """Handle selection in Personal views, System list, or Media list."""
+        """Handle selection in Personal views, Storage drives, System list, or Media list."""
         if event.list_view.id == "personal-views-list":
             item_id = (event.item.id or "") if event.item else ""
             if item_id.startswith("cat-"):
                 self.active_category = item_id.replace("cat-", "")
                 self.selected_folder = None
                 self.update_ui_views()
+
+        elif event.list_view.id == "storage-list":
+            item_id = (event.item.id or "") if event.item else ""
+            mounts = MountsManager.get_accessible_mounts()
+            for mount_path, label_str in mounts:
+                if f"drv-{hash(str(mount_path))}" == item_id:
+                    for root in self.library.folder_roots:
+                        if root.path == mount_path or root.path in mount_path.parents or mount_path in root.path.parents:
+                            self.selected_folder = root
+                            self.active_category = "folder"
+                            self.update_ui_views()
+                            break
 
         elif event.list_view.id == "system-list":
             item_id = (event.item.id or "") if event.item else ""
@@ -486,4 +505,5 @@ class VizApp(App):
         self.engine.stop()
         self.engine.terminate()
         self.exit()
+
 

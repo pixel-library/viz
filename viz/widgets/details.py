@@ -124,3 +124,6 @@ class DetailsWidget(Widget):
         body = self.query_one("#details-body", Label)
         header.update("◆ DETAILS")
         body.update(message)
+
+    show_media = show_media_item
+
