@@ -212,6 +212,66 @@ class VizApp(App):
         elif event.list_view.id == "media-list":
             self.action_select_action()
 
+    def get_item_at_index(self, idx: int) -> Optional[MediaItem]:
+        """Resolve currently selected MediaItem from UI ListView index."""
+        if idx is None or idx < 0:
+            return None
+
+        if self.active_search_query:
+            query = self.active_search_query.lower()
+            matching = [
+                m for m in self.library.all_items
+                if query in m.name.lower() or query in (m.title or "").lower() or query in (m.artist or "").lower()
+            ]
+            if 0 <= idx < len(matching):
+                return matching[idx]
+            return None
+
+        if self.active_category == "all":
+            if 0 <= idx < len(self.library.all_items):
+                return self.library.all_items[idx]
+
+        elif self.active_category == "movies":
+            if 0 <= idx < len(self.library.movies):
+                return self.library.movies[idx]
+
+        elif self.active_category == "series" and self.selected_series_name:
+            group = self.library.series_groups.get(self.selected_series_name)
+            if group:
+                all_eps = []
+                for season in group.seasons.values():
+                    all_eps.extend(season)
+                if 0 <= idx < len(all_eps):
+                    return all_eps[idx].media_item
+
+        elif self.active_category == "music":
+            if 0 <= idx < len(self.library.music):
+                return self.library.music[idx]
+
+        elif self.active_category == "continue":
+            cont_items = self.library.get_continue_watching()
+            if 0 <= idx < len(cont_items):
+                return cont_items[idx]
+
+        elif self.active_category in ("recent", "favorites", "completed"):
+            items = (
+                self.library.get_recently_played()
+                if self.active_category == "recent"
+                else (self.library.get_favorites() if self.active_category == "favorites" else self.library.get_completed())
+            )
+            if 0 <= idx < len(items):
+                return items[idx]
+
+        elif self.active_category == "queue":
+            if idx == 0 and self.queue.current_item:
+                return self.queue.current_item
+            elif self.queue.up_next:
+                q_idx = idx - (2 if self.queue.current_item else 1)
+                if 0 <= q_idx < len(self.queue.up_next):
+                    return self.queue.up_next[q_idx]
+
+        return None
+
     def action_select_action(self) -> None:
         """Handle Enter key action based on current view."""
         media_list = self.query_one(MediaListWidget)
@@ -226,59 +286,7 @@ class VizApp(App):
                 self.update_ui_views()
             return
 
-        target_item: Optional[MediaItem] = None
-
-        if self.active_search_query:
-            query = self.active_search_query.lower()
-            matching = [
-                m for m in self.library.all_items
-                if query in m.name.lower() or query in (m.title or "").lower()
-            ]
-            if 0 <= idx < len(matching):
-                target_item = matching[idx]
-
-        elif self.active_category == "all":
-            if 0 <= idx < len(self.library.all_items):
-                target_item = self.library.all_items[idx]
-
-        elif self.active_category == "movies":
-            if 0 <= idx < len(self.library.movies):
-                target_item = self.library.movies[idx]
-
-        elif self.active_category == "series" and self.selected_series_name:
-            group = self.library.series_groups[self.selected_series_name]
-            all_eps = []
-            for season in group.seasons.values():
-                all_eps.extend(season)
-            if 0 <= idx < len(all_eps):
-                target_item = all_eps[idx].media_item
-
-        elif self.active_category == "music":
-            if 0 <= idx < len(self.library.music):
-                target_item = self.library.music[idx]
-
-        elif self.active_category == "continue":
-            cont_items = self.library.get_continue_watching()
-            if 0 <= idx < len(cont_items):
-                target_item = cont_items[idx]
-
-        elif self.active_category in ("recent", "favorites", "completed"):
-            items = (
-                self.library.get_recently_played()
-                if self.active_category == "recent"
-                else (self.library.get_favorites() if self.active_category == "favorites" else self.library.get_completed())
-            )
-            if 0 <= idx < len(items):
-                target_item = items[idx]
-
-        elif self.active_category == "queue":
-            if idx == 0 and self.queue.current_item:
-                target_item = self.queue.current_item
-            elif self.queue.up_next:
-                q_idx = idx - (2 if self.queue.current_item else 1)
-                if 0 <= q_idx < len(self.queue.up_next):
-                    target_item = self.queue.up_next[q_idx]
-
+        target_item = self.get_item_at_index(idx)
         if target_item:
             self.play_media_item(target_item)
 
@@ -382,8 +390,8 @@ class VizApp(App):
     def action_favorite_or_fullscreen(self) -> None:
         media_list = self.query_one(MediaListWidget)
         idx = media_list.get_selected_index()
-        if idx is not None and 0 <= idx < len(self.filtered_media_items):
-            item = self.filtered_media_items[idx]
+        item = self.get_item_at_index(idx) if idx is not None else None
+        if item:
             is_fav = self.library.toggle_favorite(item)
             self.notify("★ Added to Favorites" if is_fav else "Removed from Favorites", title="Favorites")
             self.update_ui_views()
@@ -399,10 +407,8 @@ class VizApp(App):
     def action_show_media_info(self) -> None:
         media_list = self.query_one(MediaListWidget)
         idx = media_list.get_selected_index()
-        target_item = None
-        if idx is not None and 0 <= idx < len(self.filtered_media_items):
-            target_item = self.filtered_media_items[idx]
-        elif self.engine.state.current_media:
+        target_item = self.get_item_at_index(idx) if idx is not None else None
+        if not target_item and self.engine.state.current_media:
             target_item = self.engine.state.current_media
 
         if target_item:

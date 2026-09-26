@@ -31,6 +31,13 @@ class MediaListWidget(Widget):
         list_view.clear()
         list_view.append(ListItem(Label("[ SCANNING LIBRARY ]\n\nPlease wait...")))
 
+    def update_list(self, media_items: Optional[List[MediaItem]] = None, is_scanning: bool = False, media_path_display: str = "") -> None:
+        """Update list view (compatibility helper)."""
+        if is_scanning:
+            self.render_scanning()
+        elif media_items is not None:
+            self.render_all_media(media_items)
+
     def render_movies(self, movies: List[MediaItem], title_suffix: str = "") -> None:
         """Render Movies view with duration and completion progress bars."""
         self._update_header(f"MOVIES {title_suffix}", len(movies))
