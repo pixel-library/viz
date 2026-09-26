@@ -34,23 +34,34 @@ class ConfigManager:
         self._ensure_library_paths()
 
     def _ensure_library_paths(self) -> None:
-        """Discover existing user media directories on first run or if paths empty."""
+        """Discover existing user media directories and mounted storage on first run."""
         paths = self.data.get("library_paths", [])
         if not paths:
             discovered = []
             home = Path.home()
             candidates = [
-                home / "Videos",
+                home / "Desktop",
+                home / "Documents",
+                home / "Downloads",
                 home / "Music",
                 home / "Pictures",
+                home / "Videos",
                 home / "Movies",
                 home / "Media",
-                home / "Downloads",
                 Path.cwd() / "media",
             ]
             for cand in candidates:
                 if cand.exists() and cand.is_dir():
                     discovered.append(str(cand.resolve()))
+
+            # Discover mounted secondary storage volumes
+            try:
+                from viz.mounts import MountsManager
+                for m_path, _ in MountsManager.get_accessible_mounts():
+                    if m_path.exists() and m_path.is_dir():
+                        discovered.append(str(m_path.resolve()))
+            except Exception:
+                pass
 
             if not discovered and self.media_path.exists():
                 discovered.append(str(self.media_path))

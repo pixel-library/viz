@@ -110,6 +110,32 @@ def test_config_manager():
         assert Path(tmpdir).resolve() in cfg.get_library_paths()
 
 
+def test_non_media_folder_pruning():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        media_dir = root / "Downloads" / "Videos"
+        empty_dir = root / "PythonCode" / "Project"
+        media_dir.mkdir(parents=True)
+        empty_dir.mkdir(parents=True)
+
+        vid = media_dir / "clip.mp4"
+        vid.write_text("video")
+
+        item = MediaItem.from_file(vid)
+        roots = FolderTreeBuilder.build_tree([root], [item])
+
+        assert len(roots) == 1
+        sub_names = [sf.name for sf in roots[0].subfolders]
+        assert "Downloads" in sub_names
+        assert "PythonCode" not in sub_names
+
+
+def test_mounts_discovery():
+    from viz.mounts import MountsManager
+    mounts = MountsManager.get_accessible_mounts()
+    assert isinstance(mounts, list)
+
+
 def test_history_manager_resume_logic():
     with tempfile.TemporaryDirectory() as tmpdir:
         hist_file = Path(tmpdir) / "history.json"

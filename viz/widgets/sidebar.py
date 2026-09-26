@@ -88,9 +88,24 @@ class SidebarWidget(Widget):
                 pass
 
     def _add_folder_to_tree(self, parent_node: TreeNode[Dict], folder: FolderNode) -> None:
-        """Recursively add FolderNode to Textual Tree."""
-        count_tag = f"[{folder.total_media_count}]" if folder.total_media_count > 0 else ""
-        label_text = f"📁 {folder.name} {count_tag}"
+        """Recursively add FolderNode to Textual Tree with detailed media breakdown."""
+        counts_parts = []
+        if folder.video_count > 0:
+            counts_parts.append(f"V:{folder.video_count}")
+        if folder.audio_count > 0:
+            counts_parts.append(f"A:{folder.audio_count}")
+        if folder.image_count > 0:
+            counts_parts.append(f"I:{folder.image_count}")
+
+        breakdown = " ".join(counts_parts) if counts_parts else str(folder.total_media_count)
+        count_tag = f"[{breakdown}]" if folder.total_media_count > 0 else ""
+
+        if folder.name.startswith("🏠") or folder.name.startswith("💾"):
+            icon_str = ""
+        else:
+            icon_str = "📁 "
+
+        label_text = f"{icon_str}{folder.name} {count_tag}"
 
         node = parent_node.add(label_text, data={"type": "folder", "folder": folder})
         node.expand()

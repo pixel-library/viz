@@ -40,6 +40,15 @@ class FolderNode:
         self.total_media_count += 1
         self.total_size_bytes += item.file_size
 
+    def prune_non_media_folders(self) -> None:
+        """Prune child subfolders that contain zero media files."""
+        pruned_subs = []
+        for sf in self.subfolders:
+            sf.prune_non_media_folders()
+            if sf.total_media_count > 0 or sf.media_files:
+                pruned_subs.append(sf)
+        self.subfolders = pruned_subs
+
     def recalculate_counts(self) -> None:
         """Recursively recalculate total media counts and sizes from subfolders."""
         for sf in self.subfolders:
@@ -65,6 +74,7 @@ class FolderTreeBuilder:
         """
         Build a list of root FolderNodes matching user library directories,
         populated recursively with actual filesystem subdirectories and files.
+        Prunes non-media directories so tree only contains media-relevant folders.
         """
         roots: List[FolderNode] = []
         node_map: Dict[Path, FolderNode] = {}
@@ -73,7 +83,8 @@ class FolderTreeBuilder:
         for root_path in library_roots:
             resolved_root = root_path.expanduser().resolve()
             if resolved_root not in node_map:
-                node = FolderNode(path=resolved_root, name=resolved_root.name or str(resolved_root))
+                name = "🏠 Home" if resolved_root == Path.home() else resolved_root.name or str(resolved_root)
+                node = FolderNode(path=resolved_root, name=name)
                 node_map[resolved_root] = node
                 roots.append(node)
 
@@ -92,7 +103,6 @@ class FolderTreeBuilder:
                     continue
 
             if not matching_root:
-                # Item outside configured roots; create root for item directory
                 matching_root = item_dir
                 if matching_root not in node_map:
                     node = FolderNode(path=matching_root, name=matching_root.name or str(matching_root))
@@ -118,8 +128,12 @@ class FolderTreeBuilder:
 
             current_node.add_media(item)
 
-        # 3. Recalculate recursive counts from leaf nodes up to roots
+        # 3. Recalculate recursive counts and prune non-media subfolders
+        active_roots: List[FolderNode] = []
         for root_node in roots:
             root_node.recalculate_counts()
+            root_node.prune_non_media_folders()
+            if root_node.total_media_count > 0:
+                active_roots.append(root_node)
 
-        return roots
+        return active_roots

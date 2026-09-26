@@ -128,6 +128,17 @@ class VizApp(App):
         # Timer loop for state sync
         self.set_interval(0.5, self.sync_playback_loop)
 
+    def on_resize(self, event) -> None:
+        """Handle terminal resize to dynamically toggle Details panel for responsiveness."""
+        try:
+            details = self.query_one(DetailsWidget)
+            if event.size.width < 120:
+                details.display = False
+            else:
+                details.display = True
+        except Exception:
+            pass
+
     @work(thread=True)
     def refresh_library(self) -> None:
         """Background thread scan of all configured library directories."""
@@ -143,6 +154,12 @@ class VizApp(App):
         self.library.set_items_and_roots(discovered, target_paths)
         self.is_scanning = False
         self.call_from_thread(self.update_ui_views)
+
+        # Show initial discovery summary on first run
+        if not self.config.get("first_run_completed", False):
+            self.config.set("first_run_completed", True)
+            from viz.screens.discovery import DiscoveryScreen
+            self.call_from_thread(self.push_screen, DiscoveryScreen(self.library, target_paths))
 
     def update_ui_views(self) -> None:
         """Update Sidebar Tree, counts, Middle Column view, and Details Panel."""
