@@ -64,27 +64,32 @@ fi
 echo -e "${CYAN} Installing Viz Python Package via Pip...${RESET}"
 python3 -m pip install --upgrade --user git+https://github.com/pixel-library/viz.git
 
-# 4. Ensure ~/.local/bin is in PATH
+# 4. Symlink or Ensure ~/.local/bin is in PATH
 USER_BIN="$HOME/.local/bin"
+if [ -f "$USER_BIN/viz" ]; then
+    sudo ln -sf "$USER_BIN/viz" /usr/local/bin/viz 2>/dev/null || true
+fi
+
 if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
     echo -e "${YELLOW} Adding $USER_BIN to your PATH...${RESET}"
-    SHELL_PROFILE=""
-    if [ -f "$HOME/.zshrc" ]; then
-        SHELL_PROFILE="$HOME/.zshrc"
-    elif [ -f "$HOME/.bashrc" ]; then
-        SHELL_PROFILE="$HOME/.bashrc"
-    fi
-
-    if [ -n "$SHELL_PROFILE" ]; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_PROFILE"
-        echo -e "${GREEN}✓ Added PATH export to $SHELL_PROFILE${RESET}"
-    fi
+    for PROFILE in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+        if [ -f "$PROFILE" ]; then
+            if ! grep -q '.local/bin' "$PROFILE"; then
+                echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$PROFILE"
+                echo -e "${GREEN}✓ Added PATH export to $PROFILE${RESET}"
+            fi
+        fi
+    done
+    export PATH="$HOME/.local/bin:$PATH"
 fi
 
 echo -e ""
 echo -e "${GREEN}${BOLD}=================================================="
 echo -e " 🎉 Viz has been successfully installed!"
 echo -e "==================================================${RESET}"
+echo -e "If 'viz' command is not recognized in your current shell session, run:"
+echo -e "  ${CYAN}${BOLD}export PATH=\"\$HOME/.local/bin:\$PATH\"${RESET}"
+echo -e ""
 echo -e "To launch the player, type:"
 echo -e "  ${CYAN}${BOLD}viz${RESET}"
 echo -e ""
