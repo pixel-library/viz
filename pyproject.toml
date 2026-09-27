@@ -36,6 +36,9 @@ classifiers = [
 where = ["."]
 include = ["viz*"]
 
+[tool.setuptools.package-data]
+viz = ["styles/*.tcss", "styles/*"]
+
 [project.scripts]
 viz = "viz.cli:main"
 
