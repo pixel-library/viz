@@ -72,31 +72,71 @@ class FolderTreeBuilder:
     @staticmethod
     def build_tree(library_roots: List[Path], items: List[MediaItem]) -> List[FolderNode]:
         """
-        Build a list of root FolderNodes matching user library directories,
-        populated recursively with actual filesystem subdirectories and files.
-        Prunes empty intermediate branches while preserving configured library roots.
+        Build a list of root FolderNodes matching user library directories and Mounted Storage volumes.
+        Filters out system directories and exposes safe personal filesystem nodes.
         """
+        from viz.constants import SYSTEM_EXCLUDE_PATHS
+        from viz.mounts import MountsManager
+
         roots: List[FolderNode] = []
         node_map: Dict[Path, FolderNode] = {}
 
-        # 1. Initialize root nodes for configured library directories
-        for root_path in library_roots:
+        # 1. Initialize root nodes from configured library_roots
+        target_roots = library_roots if library_roots else [Path.home()]
+        for r_path in target_roots:
             try:
-                resolved_root = root_path.expanduser().resolve()
+                resolved_r = r_path.expanduser().resolve()
             except Exception:
                 continue
 
-            if resolved_root.exists() and resolved_root.is_dir() and resolved_root not in node_map:
-                name = "Home" if resolved_root == Path.home() else (resolved_root.name or str(resolved_root))
-                node = FolderNode(path=resolved_root, name=name)
-                node_map[resolved_root] = node
-                roots.append(node)
+            if resolved_r == Path("/") or any(str(resolved_r).startswith(sp) for sp in SYSTEM_EXCLUDE_PATHS if sp != "/tmp"):
+                continue
 
-        # 2. Group items into folder nodes, dynamically building intermediate subfolders
+            if resolved_r.exists() and resolved_r.is_dir() and resolved_r not in node_map:
+                name = "Home" if resolved_r == Path.home().resolve() else (resolved_r.name or str(resolved_r))
+                r_node = FolderNode(path=resolved_r, name=name)
+                node_map[resolved_r] = r_node
+                roots.append(r_node)
+
+                # Add immediate subdirectories if root is Home or user directory
+                try:
+                    for entry in resolved_r.iterdir():
+                        if entry.is_dir() and not entry.name.startswith("."):
+                            res_entry = entry.resolve()
+                            if any(str(res_entry).startswith(sp) for sp in SYSTEM_EXCLUDE_PATHS if sp != "/tmp"):
+                                continue
+                            if res_entry not in node_map:
+                                sub_node = FolderNode(path=res_entry, name=entry.name, parent=r_node)
+                                node_map[res_entry] = sub_node
+                                r_node.subfolders.append(sub_node)
+                except Exception:
+                    pass
+
+                r_node.subfolders.sort(key=lambda sf: sf.name.lower())
+
+        # 2. Initialize Secondary Storage / Mounted Drive Roots if default run
+        is_default_run = any(r.resolve() == Path.home().resolve() for r in target_roots)
+        if is_default_run:
+            try:
+                for mount_path, label_str in MountsManager.get_accessible_mounts():
+                    res_mount = mount_path.resolve()
+                    if res_mount not in node_map and res_mount != Path.home().resolve():
+                        m_node = FolderNode(path=res_mount, name=label_str)
+                        node_map[res_mount] = m_node
+                        roots.append(m_node)
+            except Exception:
+                pass
+
+
+        # 3. Attach scanned items to nearest root node
         for item in items:
             item_dir = item.directory.resolve()
 
-            # Find closest parent root
+            # Skip system path files
+            if item_dir == Path("/") or any(str(item_dir).startswith(sp) for sp in SYSTEM_EXCLUDE_PATHS if sp != "/tmp"):
+                continue
+
+            # Find matching parent root
             matching_root: Optional[Path] = None
             for root_path in list(node_map.keys()):
                 try:
@@ -109,9 +149,9 @@ class FolderTreeBuilder:
             if not matching_root:
                 matching_root = item_dir
                 if matching_root not in node_map:
-                    node = FolderNode(path=matching_root, name=matching_root.name or str(matching_root))
-                    node_map[matching_root] = node
-                    roots.append(node)
+                    m_node = FolderNode(path=matching_root, name=matching_root.name or str(matching_root))
+                    node_map[matching_root] = m_node
+                    roots.append(m_node)
 
             # Build folder chain from matching_root down to item_dir
             current_path = matching_root
@@ -133,11 +173,23 @@ class FolderTreeBuilder:
             if item not in current_node.media_files:
                 current_node.add_media(item)
 
-        # 3. Recalculate counts and prune empty subfolders
+        # 4. Recalculate counts and prune empty subfolders
+        STANDARD_HOME_FOLDERS = {"Desktop", "Documents", "Downloads", "Music", "Pictures", "Videos"}
         for root_node in roots:
             root_node.recalculate_counts()
-            root_node.prune_non_media_folders()
+            if root_node.name == "Home":
+                pruned = []
+                for sf in root_node.subfolders:
+                    sf.prune_non_media_folders()
+                    if sf.name in STANDARD_HOME_FOLDERS or sf.total_media_count > 0 or sf.media_files:
+                        pruned.append(sf)
+                root_node.subfolders = pruned
+            else:
+                root_node.prune_non_media_folders()
 
         return roots
+
+
+
 
 

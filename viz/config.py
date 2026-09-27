@@ -36,8 +36,20 @@ class ConfigManager:
     def _ensure_library_paths(self) -> None:
         """Discover existing user media directories and mounted storage on first run."""
         paths = self.data.get("library_paths", [])
-        if not paths:
-            discovered = []
+        sanitized = []
+        from viz.constants import SYSTEM_EXCLUDE_PATHS
+
+        for p in paths:
+            try:
+                res = Path(p).expanduser().resolve()
+                if res == Path("/") or any(str(res).startswith(sp) for sp in SYSTEM_EXCLUDE_PATHS):
+                    continue
+                if res.exists() and res.is_dir() and res not in sanitized:
+                    sanitized.append(res)
+            except Exception:
+                pass
+
+        if not sanitized:
             home = Path.home()
             candidates = [
                 home,
@@ -47,33 +59,24 @@ class ConfigManager:
                 home / "Music",
                 home / "Pictures",
                 home / "Videos",
-                home / "Movies",
-                home / "Media",
-                Path.cwd() / "media",
             ]
             for cand in candidates:
                 if cand.exists() and cand.is_dir():
-                    res = str(cand.resolve())
-                    if res not in discovered:
-                        discovered.append(res)
+                    res = cand.resolve()
+                    if res not in sanitized:
+                        sanitized.append(res)
 
             # Discover mounted secondary storage volumes
             try:
                 from viz.mounts import MountsManager
                 for m_path, _ in MountsManager.get_accessible_mounts():
-                    if m_path.exists() and m_path.is_dir():
-                        res = str(m_path.resolve())
-                        if res not in discovered:
-                            discovered.append(res)
+                    if m_path.exists() and m_path.is_dir() and m_path not in sanitized:
+                        sanitized.append(m_path.resolve())
             except Exception:
                 pass
 
-            if not discovered and self.media_path.exists():
-                discovered.append(str(self.media_path))
-
-            self.data["library_paths"] = discovered or [str(home.resolve())]
-            self.save()
-
+        self.data["library_paths"] = [str(p) for p in sanitized] or [str(Path.home().resolve())]
+        self.save()
 
     def load(self) -> None:
         """Load settings from JSON file. Recovers safely if corrupted."""
@@ -116,7 +119,7 @@ class ConfigManager:
 
     @property
     def media_path(self) -> Path:
-        return Path(self.get("media_path", str(Path.cwd() / "media"))).expanduser().resolve()
+        return Path(self.get("media_path", str(Path.home() / "Videos"))).expanduser().resolve()
 
     @media_path.setter
     def media_path(self, path: Path | str) -> None:
@@ -127,16 +130,20 @@ class ConfigManager:
             self.add_library_path(Path(p_str))
 
     def get_library_paths(self) -> list[Path]:
+        from viz.constants import SYSTEM_EXCLUDE_PATHS
         raw_paths = self.get("library_paths", [])
         result = []
         for p in raw_paths:
             try:
                 resolved = Path(p).expanduser().resolve()
+                if resolved == Path("/") or any((str(resolved) == sp or str(resolved).startswith(sp + "/")) and not str(resolved).startswith("/tmp") for sp in SYSTEM_EXCLUDE_PATHS):
+                    continue
                 if resolved.exists() and resolved.is_dir() and resolved not in result:
                     result.append(resolved)
             except Exception:
                 pass
-        return result or [self.media_path]
+        return result or [Path.home()]
+
 
     def add_library_path(self, path: Path | str) -> None:
         resolved = Path(path).expanduser().resolve()

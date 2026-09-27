@@ -160,15 +160,26 @@ HeaderWidget {
     text-style: bold;
 }
 
-/* ═══════════════════════════════════════ DETAILS PANEL ═════════════════════════════════ */
-
 #details-body {
+    height: 1fr;
     padding: 1 0;
     color: #1A1A1A;
-    scrollbar-size-vertical: 0;
-    scrollbar-size-horizontal: 0;
     scrollbar-size: 0 0;
 }
+
+#storage-header {
+    margin-top: 1;
+    margin-bottom: 0;
+    border-top: solid #FF8800;
+}
+
+#storage-body {
+    height: auto;
+    min-height: 7;
+    padding: 0 0;
+    color: #1A1A1A;
+}
+
 
 /* ═══════════════════════════════════════ IMAGE VIEWER ══════════════════════════════════ */
 

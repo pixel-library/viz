@@ -69,7 +69,16 @@ SYSTEM_EXCLUDE_PATHS = {
     "/sbin",
     "/var",
     "/tmp",
+    "/boot",
+    "/lib",
+    "/lib64",
+    "/root",
+    "/opt",
+    "/srv",
+    "/snap",
+    "/flatpak",
 }
+
 
 # XDG Compliant Storage Paths
 CONFIG_DIR = Path.home() / ".config" / "viz"

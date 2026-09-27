@@ -46,24 +46,31 @@ class MediaScanner:
         self,
         directory: Path,
         show_hidden: bool = False,
+        max_depth: int = 4,
         progress_callback: Optional[Callable[[int, Path], None]] = None,
     ) -> List[MediaItem]:
         """
-        Recursively scan target directory for supported files.
-        Executes safely with individual file/directory exception handling.
+        Scan target directory for supported media files cleanly and safely.
+        Executes with max recursion depth control and heavy build folder pruning.
         """
         resolved_dir = directory.expanduser().resolve()
         if not resolved_dir.exists() or not resolved_dir.is_dir():
             return []
 
-        # System directory exclusion safety check
+        # Never scan system directories or root /
+        if resolved_dir == Path("/"):
+            return []
+
         for sys_path in SYSTEM_EXCLUDE_PATHS:
             if str(resolved_dir).startswith(sys_path):
-                print(f"[Scanner Warning] Skipping excluded system directory: {resolved_dir}")
                 return []
 
         discovered: List[MediaItem] = []
         count = 0
+        base_depth = len(resolved_dir.parts)
+
+        # Build directories and heavy environment folders to prune
+        heavy_dirs = {"anaconda3", "node_modules", "venv", ".venv", "env", "target", "build", "__pycache__", ".git", ".cache", ".local"}
 
         try:
             for root, dirs, files in os.walk(resolved_dir, followlinks=False):
@@ -72,8 +79,15 @@ class MediaScanner:
                     dirs.clear()
                     continue
 
+                # Max depth pruning
+                current_depth = len(Path(root).parts) - base_depth
+                if current_depth >= max_depth:
+                    dirs.clear()
+
                 if not show_hidden:
-                    dirs[:] = [d for d in dirs if not d.startswith(".")]
+                    dirs[:] = [d for d in dirs if not d.startswith(".") and d not in heavy_dirs]
+                else:
+                    dirs[:] = [d for d in dirs if d not in heavy_dirs]
 
                 root_path = Path(root)
                 for filename in files:
@@ -93,3 +107,4 @@ class MediaScanner:
             print(f"[Scanner Warning] Scan interrupted in {resolved_dir}: {err}")
 
         return sorted(discovered, key=lambda m: m.name.lower())
+
