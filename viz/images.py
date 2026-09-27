@@ -204,6 +204,9 @@ class ImageHelper:
         if not TerminalCapabilities.has_display():
             return False
 
+        if not path.exists():
+            return False
+
         if cls._active_proc and cls._active_proc.poll() is None:
             try:
                 cls._active_proc.terminate()

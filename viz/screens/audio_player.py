@@ -1,9 +1,8 @@
 """
 Dedicated Virtual Audio Player Screen for Viz Media Center.
+Premium music and radio player UI inspired by modern audio environments.
 
-Audio playback uses the MPV engine with vo=null (no video window).
-The terminal screen shows track metadata, a progress scrubber, volume control,
-and playlist navigation.
+Audio playback uses python-mpv engine with vo=null (no video window created).
 """
 
 from __future__ import annotations
@@ -11,11 +10,12 @@ from __future__ import annotations
 from typing import List, Optional
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical
+from textual.containers import Container, Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Footer, Label
 
-from viz.models import MediaItem, PlaybackState, PlaybackStatus
+from viz.metadata import MetadataExtractor
+from viz.models import LoopMode, MediaItem, PlaybackState, PlaybackStatus
 from viz.widgets.player_status import PlayerStatusWidget
 
 
@@ -33,28 +33,61 @@ class AudioPlayerScreen(ModalScreen):
         Binding("m", "toggle_mute", "Mute", show=True),
         Binding("n", "next_track", "Next Track", show=True),
         Binding("b", "prev_track", "Prev Track", show=True),
+        Binding("l", "cycle_loop", "Loop Mode", show=True),
+        Binding("z", "toggle_shuffle", "Shuffle", show=True),
     ]
 
     def __init__(self, current_item: MediaItem, playlist: Optional[List[MediaItem]] = None) -> None:
         super().__init__()
-        self.current_item = current_item
+        self.current_item = MetadataExtractor.enrich_metadata(current_item)
         self.playlist = playlist or [current_item]
         self.current_index = self.playlist.index(current_item) if current_item in self.playlist else 0
+        self.loop_mode: LoopMode = LoopMode.OFF
+        self.is_shuffle: bool = False
 
     def compose(self) -> ComposeResult:
         with Vertical(id="audio-screen-container"):
-            yield Label("VIZ // AUDIO PLAYER", classes="dialog-header", id="audio-header")
-            yield Label("", id="audio-display-body")
-            yield Label("", id="audio-info-footer")
-            yield Footer()
+            with Horizontal(id="audio-header-bar"):
+                yield Label("←  VIZ // MUSIC PLAYER", id="audio-brand")
+                yield Label("", id="audio-queue-counter")
+
+            with Horizontal(id="audio-hero"):
+                yield Label("", id="audio-cover-art")
+                with Vertical(id="audio-track-info"):
+                    yield Label("... NOW PLAYING", id="audio-sub-label")
+                    yield Label("", id="audio-track-title")
+                    yield Label("", id="audio-artist-name")
+                    yield Label("", id="audio-album-name")
+                    yield Label("", id="audio-fmt-badge")
+
+            with Horizontal(id="audio-scrubber-bar"):
+                yield Label("00:00", id="audio-time-cur")
+                yield Label("━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━", id="audio-scrubber-line")
+                yield Label("00:00", id="audio-time-dur")
+
+            with Horizontal(id="audio-sub-scrubber"):
+                yield Label("ON AIR", id="audio-sub-left")
+                yield Label("STEREO • HIGH-FIDELITY LIVE »", id="audio-sub-right")
+
+            with Horizontal(id="audio-controls-bar"):
+                yield Label("↶ [L] Loop: OFF", id="audio-loop-tag")
+                yield Label("  ⏮ [B]    ( ⏸ ) [SPACE]    ⏭ [N]  ", id="audio-center-controls")
+                yield Label("🔀 [Z] Shuffle: OFF", id="audio-shuffle-tag")
+
+            with Horizontal(id="audio-footer-line"):
+                yield Label("🔊 Volume 80%", id="audio-vol-tag")
+                yield Label("Audio Output: System Default", id="audio-device-tag")
+                yield Label("[ESC] Back to Filesystem", id="audio-esc-tag")
 
     def on_mount(self) -> None:
         self.start_playback()
-        self.set_interval(0.5, self.update_display)
+        self.set_interval(0.25, self.update_display)
 
     def start_playback(self) -> None:
         if 0 <= self.current_index < len(self.playlist):
-            self.current_item = self.playlist[self.current_index]
+            self.current_item = MetadataExtractor.enrich_metadata(self.playlist[self.current_index])
+            if hasattr(self.app, "last_selected_item"):
+                self.app.last_selected_item = self.current_item
             if hasattr(self.app, "engine"):
                 resume_pos = 0.0
                 if hasattr(self.app, "history"):
@@ -72,45 +105,55 @@ class AudioPlayerScreen(ModalScreen):
         if hasattr(self.app, "history") and state.position > 5.0 and state.status == PlaybackStatus.PLAYING:
             self.app.history.update_position(self.current_item.path, state.position, state.duration)
 
-        header = self.query_one("#audio-header", Label)
-        header.update(f"VIZ // AUDIO PLAYER  [{self.current_index + 1}/{len(self.playlist)}]")
+        counter_lbl = self.query_one("#audio-queue-counter", Label)
+        counter_lbl.update(f"[{self.current_index + 1}/{len(self.playlist)}]")
 
+        # Track metadata display
+        title_str = self.current_item.title or self.current_item.display_name
+        artist_str = self.current_item.artist or "Unknown Artist"
+        album_str = self.current_item.album or "Unknown Album"
+        ext_str = self.current_item.extension.upper().lstrip(".")
+        track_tag = f"Track {self.current_item.track_num}" if self.current_item.track_num else f"Track {self.current_index + 1}"
+
+        self.query_one("#audio-track-title", Label).update(f"[bold white]{title_str}[/bold white]")
+        self.query_one("#audio-artist-name", Label).update(f"[bold #b0b8c4]{artist_str}[/bold #b0b8c4]")
+        self.query_one("#audio-album-name", Label).update(f"[dim #808a9d]{album_str}[/dim #808a9d]")
+        self.query_one("#audio-fmt-badge", Label).update(f"[orange]{ext_str}[/orange] • [dim]{track_tag}[/dim]")
+
+        # Cover art card
+        cover_art = self.query_one("#audio-cover-art", Label)
+        art_card = (
+            " ┌─────────────────────┐ \n"
+            " │                     │ \n"
+            " │    ♫  AUDIO  ♫      │ \n"
+            " │                     │ \n"
+            " │    [ VIZ PLAYER ]   │ \n"
+            " │                     │ \n"
+            " └─────────────────────┘ "
+        )
+        cover_art.update(art_card)
+
+        # Scrubber rendering
         pos_str = PlayerStatusWidget.format_time(state.position)
         dur_str = PlayerStatusWidget.format_time(state.duration)
+
+        self.query_one("#audio-time-cur", Label).update(pos_str)
+        self.query_one("#audio-time-dur", Label).update(dur_str)
+
         pct = (state.position / max(1.0, state.duration)) if state.duration > 0 else 0.0
-        bar_len = 40
+        bar_len = max(10, getattr(self.app.size, "width", 80) - 30)
         filled = int(pct * bar_len)
         scrubber = "━" * filled + "●" + "─" * max(0, bar_len - filled - 1)
+        self.query_one("#audio-scrubber-line", Label).update(f" {scrubber} ")
 
-        artist_str = f"By {self.current_item.artist}" if self.current_item.artist else ""
-        album_str = f"Album: {self.current_item.album}" if self.current_item.album else ""
-        ext_str = self.current_item.extension.upper().lstrip(".")
-        status_icon = "▶" if state.status == PlaybackStatus.PLAYING else ("⏸" if state.status == PlaybackStatus.PAUSED else "■")
-        status_text = "PLAYING" if state.status == PlaybackStatus.PLAYING else ("PAUSED" if state.status == PlaybackStatus.PAUSED else "STOPPED")
+        # Controls & icons
+        status_icon = "⏸" if state.status == PlaybackStatus.PLAYING else ("▶" if state.status == PlaybackStatus.PAUSED else "■")
+        self.query_one("#audio-center-controls", Label).update(f"  ⏮ [B]   ( {status_icon} ) [SPACE]   ⏭ [N]  ")
 
-        audio_card = (
-            "\n\n"
-            "   ┌─────────────────────────────────────────────────────────────┐\n"
-            "   │                                                             │\n"
-            f"   │     {status_icon} {status_text:<10}                                       │\n"
-            "   │                                                             │\n"
-            f"   │     [bold orange]{(self.current_item.title or self.current_item.name)[:50]:<50}[/bold orange] │\n"
-            f"   │     {artist_str[:56]:<56}  │\n"
-            f"   │     {album_str[:56]:<56}  │\n"
-            "   │                                                             │\n"
-            f"   │     {pos_str}  {scrubber}  {dur_str:>8} │\n"
-            "   │                                                             │\n"
-            f"   │     FORMAT: {ext_str:<8}   TRACK: {self.current_index + 1}/{len(self.playlist):<20} │\n"
-            "   │                                                             │\n"
-            "   └─────────────────────────────────────────────────────────────┘\n"
-        )
-
-        display_body = self.query_one("#audio-display-body", Label)
-        display_body.update(audio_card)
-
-        info_footer = self.query_one("#audio-info-footer", Label)
-        vol_str = "Muted" if state.is_muted else f"Volume {state.volume}%"
-        info_footer.update(f" {vol_str}       Speed {state.speed}x       Repeat {state.loop_mode.value}")
+        vol_str = "Muted" if state.is_muted else f"{state.volume}%"
+        self.query_one("#audio-vol-tag", Label).update(f"🔊 Volume {vol_str}")
+        self.query_one("#audio-loop-tag", Label).update(f"↶ [L] Loop: {self.loop_mode.value}")
+        self.query_one("#audio-shuffle-tag", Label).update(f"🔀 [Z] Shuffle: {'ON' if self.is_shuffle else 'OFF'}")
 
     def action_toggle_play_pause(self) -> None:
         if hasattr(self.app, "engine"):
@@ -152,10 +195,27 @@ class AudioPlayerScreen(ModalScreen):
             self.current_index = (self.current_index - 1) % len(self.playlist)
             self.start_playback()
 
+    def action_cycle_loop(self) -> None:
+        if self.loop_mode == LoopMode.OFF:
+            self.loop_mode = LoopMode.ONE
+        elif self.loop_mode == LoopMode.ONE:
+            self.loop_mode = LoopMode.ALL
+        else:
+            self.loop_mode = LoopMode.OFF
+        self.update_display()
+
+    def action_toggle_shuffle(self) -> None:
+        self.is_shuffle = not self.is_shuffle
+        self.update_display()
+
     def action_dismiss_screen(self) -> None:
-        # Save position before dismissing
-        if hasattr(self.app, "engine") and hasattr(self.app, "history"):
+        if hasattr(self.app, "engine"):
             state = self.app.engine.state
-            if state.position > 5.0 and state.current_media:
+            if hasattr(self.app, "history") and state.position > 5.0 and state.current_media:
                 self.app.history.update_position(state.current_media.path, state.position, state.duration)
+            self.app.engine.stop()
+
+        if hasattr(self.app, "update_ui_views"):
+            self.app.update_ui_views()
+
         self.dismiss()

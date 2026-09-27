@@ -1,11 +1,8 @@
 """
 Dedicated Virtual Video Player Screen for Viz Media Center.
+Cinematic streaming UI inspired by modern video platforms.
 
-Video playback uses the native MPV engine which opens a hardware-accelerated
-video window via libmpv. The terminal screen shows playback controls, progress
-scrubber, volume indicator, and navigation.
-
-Videos are NOT decoded in Python — MPV handles all rendering via GPU.
+Video playback uses native MPV engine with hardware-accelerated decoding (vo=gpu / hwdec=auto).
 """
 
 from __future__ import annotations
@@ -13,7 +10,7 @@ from __future__ import annotations
 from typing import List, Optional
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical
+from textual.containers import Container, Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Footer, Label
 
@@ -30,6 +27,8 @@ class VideoPlayerScreen(ModalScreen):
         Binding("space", "toggle_play_pause", "Play/Pause", show=True),
         Binding("left", "seek_back", "Seek -10s", show=True),
         Binding("right", "seek_forward", "Seek +10s", show=True),
+        Binding("shift+left", "seek_back_large", "Seek -60s", show=False),
+        Binding("shift+right", "seek_forward_large", "Seek +60s", show=False),
         Binding("up", "volume_up", "Vol +", show=True),
         Binding("down", "volume_down", "Vol -", show=True),
         Binding("m", "toggle_mute", "Mute", show=True),
@@ -46,19 +45,32 @@ class VideoPlayerScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="video-screen-container"):
-            yield Label("VIZ // VIDEO PLAYER", classes="dialog-header", id="video-header")
-            yield Label("", id="video-display-body")
-            yield Label("", id="video-status-bar")
-            yield Label("", id="video-progress-bar")
-            yield Footer()
+            with Horizontal(id="video-header-bar"):
+                yield Label("←  VIZ // CINEMATIC VIDEO", id="video-brand")
+                yield Label("", id="video-title-label")
+                yield Label("", id="video-queue-counter")
+
+            yield Label("", id="video-viewport")
+
+            with Horizontal(id="video-scrubber-bar"):
+                yield Label("00:00", id="video-time-cur")
+                yield Label("━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━", id="video-scrubber-line")
+                yield Label("00:00", id="video-time-dur")
+
+            with Horizontal(id="video-controls-bar"):
+                yield Label("MP4 • 1080p", id="video-fmt-tag")
+                yield Label("  ⏮   ( ⏸ )   ⏭  ", id="video-center-controls")
+                yield Label("🔊 80%    ⚙ GPU    ⛶ [F]    [ESC] Back", id="video-right-status")
 
     def on_mount(self) -> None:
         self.start_playback()
-        self.set_interval(0.5, self.update_display)
+        self.set_interval(0.25, self.update_display)
 
     def start_playback(self) -> None:
         if 0 <= self.current_index < len(self.queue_items):
             self.current_item = self.queue_items[self.current_index]
+            if hasattr(self.app, "last_selected_item"):
+                self.app.last_selected_item = self.current_item
             if hasattr(self.app, "engine"):
                 resume_pos = 0.0
                 if hasattr(self.app, "history"):
@@ -76,51 +88,54 @@ class VideoPlayerScreen(ModalScreen):
         if hasattr(self.app, "history") and state.position > 5.0 and state.status == PlaybackStatus.PLAYING:
             self.app.history.update_position(self.current_item.path, state.position, state.duration)
 
-        header = self.query_one("#video-header", Label)
-        header.update(f"VIZ // VIDEO PLAYER  [{self.current_index + 1}/{len(self.queue_items)}]")
+        title_lbl = self.query_one("#video-title-label", Label)
+        title_lbl.update(f"[bold white]{self.current_item.name}[/bold white]")
 
-        display_body = self.query_one("#video-display-body", Label)
-        item_name = self.current_item.name
-        res_str = f"{self.current_item.image_width}x{self.current_item.image_height}" if self.current_item.image_width > 0 else ""
-        ext_str = self.current_item.extension.upper().lstrip(".")
+        counter_lbl = self.query_one("#video-queue-counter", Label)
+        counter_lbl.update(f"[{self.current_index + 1}/{len(self.queue_items)}]")
 
-        # Show native playback status card
-        status_icon = "▶" if state.status == PlaybackStatus.PLAYING else ("⏸" if state.status == PlaybackStatus.PAUSED else "■")
-
-        video_card = (
-            "\n\n\n"
-            "   ┌─────────────────────────────────────────────────────────────┐\n"
-            f"   │     {status_icon} NOW PLAYING                                          │\n"
-            "   │                                                             │\n"
-            f"   │     [bold orange]{item_name[:50]:<50}[/bold orange] │\n"
-            "   │                                                             │\n"
-            f"   │     FORMAT: {ext_str:<8}   {('RES: ' + res_str) if res_str else '':20}              │\n"
-            "   │                                                             │\n"
-            "   │     [ MPV Native Window — Hardware Accelerated ]            │\n"
-            "   │     Video is playing in the MPV window.                     │\n"
-            "   │     Use this panel for playback controls.                   │\n"
-            "   │                                                             │\n"
-            "   │     F — Toggle Fullscreen in MPV window                     │\n"
-            "   └─────────────────────────────────────────────────────────────┘\n"
-        )
-        display_body.update(video_card)
-
-        # Status Line
-        status_bar = self.query_one("#video-status-bar", Label)
         pos_str = PlayerStatusWidget.format_time(state.position)
         dur_str = PlayerStatusWidget.format_time(state.duration)
-        vol_str = "Muted" if state.is_muted else f"Volume {state.volume}%"
-        status_text = "▶ PLAYING" if state.status == PlaybackStatus.PLAYING else ("⏸ PAUSED" if state.status == PlaybackStatus.PAUSED else "■ STOPPED")
 
-        status_bar.update(f" {status_text}    {pos_str} / {dur_str}                                {vol_str}")
+        self.query_one("#video-time-cur", Label).update(pos_str)
+        self.query_one("#video-time-dur", Label).update(dur_str)
 
-        # Progress Scrubber
-        progress_bar = self.query_one("#video-progress-bar", Label)
+        # Scrubber rendering
         pct = (state.position / max(1.0, state.duration)) if state.duration > 0 else 0.0
-        bar_len = 50
+        bar_len = max(10, getattr(self.app.size, "width", 80) - 30)
         filled = int(pct * bar_len)
         scrubber = "━" * filled + "●" + "─" * max(0, bar_len - filled - 1)
-        progress_bar.update(f" {scrubber}")
+        self.query_one("#video-scrubber-line", Label).update(f" {scrubber} ")
+
+        # Controls & icons
+        status_icon = "⏸" if state.status == PlaybackStatus.PLAYING else ("▶" if state.status == PlaybackStatus.PAUSED else "■")
+        self.query_one("#video-center-controls", Label).update(f"  ⏮   ( {status_icon} )   ⏭  ")
+
+        ext_str = self.current_item.extension.upper().lstrip(".")
+        res_str = f"{self.current_item.image_width}x{self.current_item.image_height}" if self.current_item.image_width > 0 else "1080p"
+        self.query_one("#video-fmt-tag", Label).update(f"{ext_str} • {res_str}")
+
+        vol_str = "Muted" if state.is_muted else f"{state.volume}%"
+        self.query_one("#video-right-status", Label).update(f"🔊 {vol_str}   ⚙ GPU   ⛶ [F]   [ESC] Exit")
+
+        # Viewport Card Text
+        viewport = self.query_one("#video-viewport", Label)
+        status_text = "PLAYING" if state.status == PlaybackStatus.PLAYING else ("PAUSED" if state.status == PlaybackStatus.PAUSED else "STOPPED")
+
+        card_content = (
+            "\n\n\n"
+            "   ┌────────────────────────────────────────────────────────────────────────┐\n"
+            f"   │                       [ CINEMATIC VIDEO ENGINE ]                       │\n"
+            "   │                                                                        │\n"
+            f"   │     STATUS:     [bold orange]{status_icon} {status_text:<12}[/bold orange]                               │\n"
+            f"   │     TITLE:      [bold white]{self.current_item.name[:45]:<45}[/bold white]  │\n"
+            f"   │     FORMAT:     {ext_str:<8}  RESOLUTION: {res_str:<12}                │\n"
+            "   │     DECODER:    MPV Native Window (vo=gpu / hwdec=auto)                │\n"
+            "   │                                                                        │\n"
+            "   │     [ SPACE Play/Pause  •  ←/→ Seek  •  ↑/↓ Vol  •  N/B Track  •  F Fullscreen ] │\n"
+            "   └────────────────────────────────────────────────────────────────────────┘\n"
+        )
+        viewport.update(card_content)
 
     def action_toggle_play_pause(self) -> None:
         if hasattr(self.app, "engine"):
@@ -135,6 +150,16 @@ class VideoPlayerScreen(ModalScreen):
     def action_seek_forward(self) -> None:
         if hasattr(self.app, "engine"):
             self.app.engine.seek(10.0)
+            self.update_display()
+
+    def action_seek_back_large(self) -> None:
+        if hasattr(self.app, "engine"):
+            self.app.engine.seek(-60.0)
+            self.update_display()
+
+    def action_seek_forward_large(self) -> None:
+        if hasattr(self.app, "engine"):
+            self.app.engine.seek(60.0)
             self.update_display()
 
     def action_volume_up(self) -> None:
@@ -171,9 +196,13 @@ class VideoPlayerScreen(ModalScreen):
                 pass
 
     def action_dismiss_screen(self) -> None:
-        # Save position before dismissing
-        if hasattr(self.app, "engine") and hasattr(self.app, "history"):
+        if hasattr(self.app, "engine"):
             state = self.app.engine.state
-            if state.position > 5.0 and state.current_media:
+            if hasattr(self.app, "history") and state.position > 5.0 and state.current_media:
                 self.app.history.update_position(state.current_media.path, state.position, state.duration)
+            self.app.engine.stop()
+
+        if hasattr(self.app, "update_ui_views"):
+            self.app.update_ui_views()
+
         self.dismiss()

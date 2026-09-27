@@ -41,23 +41,24 @@ class MediaRouter:
             item = item_or_path
 
         if item.media_type == MediaType.IMAGE:
-            from viz.images import ImageHelper
             if hasattr(app, "last_selected_item"):
                 app.last_selected_item = item
-
-            if hasattr(app, "engine") and app.engine:
-                if app.engine.play_image(item):
-                    return
-
-            ImageHelper.open_native_viewer(item.path)
+            folder_imgs = context_queue or cls._get_folder_media(app, MediaType.IMAGE)
+            if item not in folder_imgs:
+                folder_imgs.insert(0, item)
+            app.push_screen(ImageViewerScreen(item, folder_imgs))
 
         elif item.media_type == MediaType.VIDEO:
+            if hasattr(app, "last_selected_item"):
+                app.last_selected_item = item
             folder_vids = context_queue or cls._get_folder_media(app, MediaType.VIDEO)
             if item not in folder_vids:
                 folder_vids.insert(0, item)
             app.push_screen(VideoPlayerScreen(item, folder_vids))
 
         elif item.media_type == MediaType.AUDIO:
+            if hasattr(app, "last_selected_item"):
+                app.last_selected_item = item
             folder_auds = context_queue or cls._get_folder_media(app, MediaType.AUDIO)
             if item not in folder_auds:
                 folder_auds.insert(0, item)

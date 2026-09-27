@@ -168,6 +168,9 @@ class MediaEngine:
         if not TerminalCapabilities.has_display():
             return False
 
+        if not media_item.path.exists():
+            return False
+
         if self._image_process and self._image_process.poll() is None:
             try:
                 self._image_process.terminate()
