@@ -126,13 +126,16 @@ class VizApp(App):
         self.set_interval(0.5, self.sync_playback_loop)
 
     def on_resize(self, event) -> None:
-        """Handle terminal resize to dynamically toggle Details panel for responsiveness."""
+        """Handle terminal resize to maintain 3-column layout responsiveness."""
         try:
             details = self.query_one(DetailsWidget)
-            if event.size.width < 120:
-                details.display = False
+            details.display = True
+
+            header = self.query_one(HeaderWidget)
+            if event.size.height < 30:
+                header.set_compact_mode(True)
             else:
-                details.display = True
+                header.set_compact_mode(False)
         except Exception:
             pass
 

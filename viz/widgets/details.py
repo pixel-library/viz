@@ -26,10 +26,24 @@ class DetailsWidget(Widget):
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="column", id="details-column"):
-            yield Label("◆ ITEM INFORMATION", classes="column-header", id="details-header")
+            yield Label("INFORMATION", classes="column-header", id="details-header")
             yield Label("Select a file or folder\nto inspect details.", id="details-body")
-            yield Label("◆ STORAGE", classes="section-header", id="storage-header")
+            yield Label("STORAGE", classes="section-header", id="storage-header")
             yield Label("Loading storage...", id="storage-body")
+
+    @staticmethod
+    def _truncate_name(name: str, max_len: int = 22) -> str:
+        if len(name) <= max_len:
+            return name
+        return name[: max_len - 3] + "..."
+
+    @staticmethod
+    def _truncate_path(path: Path | str, max_len: int = 22) -> str:
+        p_str = str(path)
+        if len(p_str) <= max_len:
+            return p_str
+        p = Path(path)
+        return f".../{p.name}"
 
     def update_storage(self, target_path: Optional[Path] = None) -> None:
         """Update the permanent STORAGE section using real disk_usage for target_path."""
@@ -46,7 +60,7 @@ class DetailsWidget(Widget):
             free_gb = free / (1024**3)
 
             pct = (used / max(1, total)) * 100.0
-            bar_len = 10
+            bar_len = 8
             filled = int(bar_len * (pct / 100.0))
             bar_str = "█" * filled + "░" * (bar_len - filled)
 
@@ -54,7 +68,7 @@ class DetailsWidget(Widget):
             home_str = str(Path.home().resolve())
             if resolved == Path.home().resolve() or drive_name.startswith(home_str):
                 drive_name = "HOME (~)"
-            elif len(drive_name) > 24:
+            elif len(drive_name) > 18:
                 drive_name = f".../{resolved.name}"
 
             text = (
@@ -65,7 +79,7 @@ class DetailsWidget(Widget):
                 f"[bold]USAGE:[/bold]  [{bar_str}] {pct:.1f}%"
             )
             self.query_one("#storage-body", Label).update(text)
-        except Exception as err:
+        except Exception:
             self.query_one("#storage-body", Label).update("Storage stats unavailable")
 
     @staticmethod
@@ -81,16 +95,19 @@ class DetailsWidget(Widget):
         header = self.query_one("#details-header", Label)
         body = self.query_one("#details-body", Label)
 
-        header.update("◆ FOLDER INFORMATION")
+        header.update("INFORMATION")
 
         size_mb = folder.total_size_bytes / (1024 * 1024)
         size_str = f"{size_mb / 1024:.2f} GB" if size_mb >= 1024 else f"{size_mb:.1f} MB"
         mod_date = self._format_date(folder.path)
 
+        folder_name = self._truncate_name(folder.name, 22)
+        loc_str = self._truncate_path(folder.path, 22)
+
         text = (
-            f"[bold orange]{folder.name[:28]}[/bold orange]\n\n"
+            f"[bold orange]{folder_name}[/bold orange]\n\n"
             f"[bold]TYPE:[/bold]      Folder\n"
-            f"[bold]LOCATION:[/bold]  [dim]{str(folder.path)[:30]}[/dim]\n"
+            f"[bold]LOCATION:[/bold]  [dim]{loc_str}[/dim]\n"
             f"[bold]MODIFIED:[/bold]  {mod_date}\n\n"
             f"[bold]CONTENTS:[/bold]\n"
             f"  Subfolders: {len(folder.subfolders)}\n"
@@ -108,7 +125,7 @@ class DetailsWidget(Widget):
         header = self.query_one("#details-header", Label)
         body = self.query_one("#details-body", Label)
 
-        header.update("◆ FILE INFORMATION")
+        header.update("INFORMATION")
 
         size_mb = item.file_size / (1024 * 1024)
         size_str = f"{size_mb / 1024:.2f} GB" if size_mb >= 1024 else f"{size_mb:.1f} MB"
@@ -117,6 +134,9 @@ class DetailsWidget(Widget):
         fav_str = " ★" if item.favorite else ""
         mod_date = self._format_date(item.path)
 
+        item_name = self._truncate_name(item.name, 22)
+        loc_str = self._truncate_path(item.path.parent, 22)
+
         if item.media_type == MediaType.VIDEO:
             dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else "Unknown"
             dim_str = f"{item.video_width} × {item.video_height}" if item.video_width > 0 else "Unknown"
@@ -124,31 +144,31 @@ class DetailsWidget(Widget):
             px_str = f"{px_count:,}" if px_count > 0 else "Unknown"
 
             text = (
-                f"[bold orange]{item.name[:26]}[/bold orange]{fav_str}\n\n"
+                f"[bold orange]{item_name}[/bold orange]{fav_str}\n\n"
                 f"[bold]TYPE:[/bold]       Video\n"
                 f"[bold]FORMAT:[/bold]     {item.extension.upper().lstrip('.')}\n"
                 f"[bold]DIMENSIONS:[/bold] {dim_str}\n"
                 f"[bold]PIXELS:[/bold]     {px_str}\n"
                 f"[bold]DURATION:[/bold]   {dur_str}\n"
                 f"[bold]SIZE:[/bold]       {size_str}\n"
-                f"[bold]LOCATION:[/bold]   [dim]{str(item.path.parent)[:30]}[/dim]\n"
+                f"[bold]LOCATION:[/bold]   [dim]{loc_str}[/dim]\n"
                 f"[bold]MODIFIED:[/bold]   {mod_date}"
             )
 
         elif item.media_type == MediaType.AUDIO:
             dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else "Unknown"
-            artist_str = f"{item.artist[:16]}" if item.artist else "Unknown Artist"
-            album_str = f"{item.album[:16]}" if item.album else "Unknown Album"
+            artist_str = self._truncate_name(item.artist, 14) if item.artist else "Unknown Artist"
+            album_str = self._truncate_name(item.album, 14) if item.album else "Unknown Album"
 
             text = (
-                f"[bold orange]{item.name[:26]}[/bold orange]{fav_str}\n\n"
+                f"[bold orange]{item_name}[/bold orange]{fav_str}\n\n"
                 f"[bold]TYPE:[/bold]       Audio\n"
                 f"[bold]FORMAT:[/bold]     {item.extension.upper().lstrip('.')}\n"
                 f"[bold]ARTIST:[/bold]     {artist_str}\n"
                 f"[bold]ALBUM:[/bold]      {album_str}\n"
                 f"[bold]DURATION:[/bold]   {dur_str}\n"
                 f"[bold]SIZE:[/bold]       {size_str}\n"
-                f"[bold]LOCATION:[/bold]   [dim]{str(item.path.parent)[:30]}[/dim]\n"
+                f"[bold]LOCATION:[/bold]   [dim]{loc_str}[/dim]\n"
                 f"[bold]MODIFIED:[/bold]   {mod_date}"
             )
 
@@ -159,21 +179,21 @@ class DetailsWidget(Widget):
             px_str = f"{px_count:,}" if px_count > 0 else "Unknown"
 
             text = (
-                f"[bold orange]{item.name[:26]}[/bold orange]{fav_str}\n\n"
+                f"[bold orange]{item_name}[/bold orange]{fav_str}\n\n"
                 f"[bold]TYPE:[/bold]       Image\n"
                 f"[bold]FORMAT:[/bold]     {fmt_str}\n"
                 f"[bold]DIMENSIONS:[/bold] {dim_str}\n"
                 f"[bold]PIXELS:[/bold]     {px_str}\n"
                 f"[bold]SIZE:[/bold]       {size_str}\n"
-                f"[bold]LOCATION:[/bold]   [dim]{str(item.path.parent)[:30]}[/dim]\n"
+                f"[bold]LOCATION:[/bold]   [dim]{loc_str}[/dim]\n"
                 f"[bold]MODIFIED:[/bold]   {mod_date}"
             )
         else:
             text = (
-                f"[bold orange]{item.name[:26]}[/bold orange]\n\n"
+                f"[bold orange]{item_name}[/bold orange]\n\n"
                 f"[bold]TYPE:[/bold]       File\n"
                 f"[bold]SIZE:[/bold]       {size_str}\n"
-                f"[bold]LOCATION:[/bold]   [dim]{str(item.path.parent)[:30]}[/dim]\n"
+                f"[bold]LOCATION:[/bold]   [dim]{loc_str}[/dim]\n"
                 f"[bold]MODIFIED:[/bold]   {mod_date}"
             )
 
@@ -183,7 +203,7 @@ class DetailsWidget(Widget):
     def show_empty(self, message: str = "No item selected.") -> None:
         header = self.query_one("#details-header", Label)
         body = self.query_one("#details-body", Label)
-        header.update("◆ VIZ SYSTEM")
+        header.update("INFORMATION")
         lib = getattr(self.app, "library", None)
         lib_str = ""
         if lib:

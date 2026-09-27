@@ -48,8 +48,8 @@ class MediaListWidget(Widget):
     """Main Content Media Browser displaying folders and classified media files."""
 
     def compose(self) -> ComposeResult:
-        with Vertical(classes="column", id="right-column"):
-            yield Label("[ /Browse ]", classes="column-header", id="browse-header")
+        with Vertical(classes="column", id="center-column"):
+            yield Label("CONTENT / MEDIA", classes="column-header", id="browse-header")
             yield ListView(id="media-list")
 
     def render_scanning(self) -> None:
@@ -92,7 +92,7 @@ class MediaListWidget(Widget):
             for sf in folder.subfolders:
                 cnt_tag = f"[{sf.total_media_count}]" if sf.total_media_count > 0 else ""
                 clean_sf_name = sf.name.replace("📁", "").replace("🏠", "").replace("💾", "").strip()
-                list_view.append(FolderListItem(f"{folder_sym} {clean_sf_name:<36} {cnt_tag}", folder=sf))
+                list_view.append(FolderListItem(f"{folder_sym} {clean_sf_name:<28} {cnt_tag}", folder=sf))
 
         # 2. Classified Files second
         if filtered_files:
@@ -106,16 +106,16 @@ class MediaListWidget(Widget):
                     dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else "--:--"
                     ext_str = item.extension.upper().lstrip(".")
                     fav_str = " ★" if item.favorite else ""
-                    list_view.append(MediaListItem(f"[VID] {item.name[:32]:<32}  {ext_str:<6}  {dur_str}{fav_str}", media_item=item))
+                    list_view.append(MediaListItem(f"[VID] {item.name[:26]:<26}  {ext_str:<5}  {dur_str}{fav_str}", media_item=item))
 
             if audio:
                 list_view.append(HeaderListItem("AUDIO"))
                 for item in audio:
                     dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else "--:--"
                     ext_str = item.extension.upper().lstrip(".")
-                    artist_str = f"{item.artist[:16]}" if item.artist else ""
+                    artist_str = f"{item.artist[:14]}" if item.artist else ""
                     fav_str = " ★" if item.favorite else ""
-                    list_view.append(MediaListItem(f"[AUD] {item.name[:30]:<30}  {ext_str:<6}  {artist_str:<16}  {dur_str}{fav_str}", media_item=item))
+                    list_view.append(MediaListItem(f"[AUD] {item.name[:24]:<24}  {ext_str:<5}  {dur_str}{fav_str}", media_item=item))
 
             if images:
                 list_view.append(HeaderListItem("IMAGES"))
@@ -124,7 +124,7 @@ class MediaListWidget(Widget):
                     ext_str = item.image_format or item.extension.upper().lstrip(".")
                     dim_str = f"{item.image_width}×{item.image_height}" if item.image_width > 0 else ""
                     fav_str = " ★" if item.favorite else ""
-                    list_view.append(MediaListItem(f"[IMG] {item.name[:32]:<32}  {ext_str:<6}  {size_kb:<10}  {dim_str}{fav_str}", media_item=item))
+                    list_view.append(MediaListItem(f"[IMG] {item.name[:24]:<24}  {ext_str:<5}  {size_kb:<8}  {dim_str}{fav_str}", media_item=item))
 
     def render_media_items(self, title: str, items: List[MediaItem]) -> None:
         """Render a list of MediaItems (e.g. Recently Played, Favorites, Continue Watching)."""
@@ -140,11 +140,14 @@ class MediaListWidget(Widget):
             dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else ""
             fav_str = " ★" if item.favorite else ""
             icon = item.ascii_icon
-            list_view.append(MediaListItem(f"{icon} {item.name:<32} {dur_str}{fav_str}", media_item=item))
+            list_view.append(MediaListItem(f"{icon} {item.name[:28]:<28} {dur_str}{fav_str}", media_item=item))
 
     def _update_header(self, title: str, count: int) -> None:
         header_label = self.query_one("#browse-header", Label)
-        header_label.update(f"{title} [{count}]")
+        display_title = title
+        if len(display_title) > 22:
+            display_title = f".../{display_title[-18:]}"
+        header_label.update(f"CONTENT / MEDIA — {display_title} [{count}]")
 
     def get_selected_index(self) -> Optional[int]:
         list_view = self.query_one("#media-list", ListView)

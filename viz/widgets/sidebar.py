@@ -36,7 +36,7 @@ class SidebarWidget(Widget):
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="column", id="left-column"):
-            yield Label("FILESYSTEM", classes="column-header", id="tree-header")
+            yield Label("MEDIA FILESYSTEM", classes="column-header", id="tree-header")
             tree: Tree[Dict] = Tree("LIBRARY ROOTS", id="folder-tree")
             tree.show_root = False
             yield tree

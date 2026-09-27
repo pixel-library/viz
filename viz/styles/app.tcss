@@ -16,7 +16,8 @@ Screen {
 
 HeaderWidget {
     align: center top;
-    height: 8;
+    height: auto;
+    max-height: 8;
     margin: 0;
     padding: 0;
     background: #FFFDF8;
@@ -26,7 +27,7 @@ HeaderWidget {
 #top-status-line {
     text-align: center;
     color: #FF8800;
-    height: 8;
+    height: auto;
     background: #FFFDF8;
     width: 100%;
 }
@@ -46,19 +47,22 @@ HeaderWidget {
 }
 
 #left-column {
-    width: 34;
+    width: 25%;
+    min-width: 20;
     height: 100%;
     border-right: solid #FFE1B8;
 }
 
-#right-column {
-    width: 1fr;
+#center-column {
+    width: 50%;
+    min-width: 30;
     height: 100%;
     border-right: solid #FFE1B8;
 }
 
 #details-column {
-    width: 36;
+    width: 25%;
+    min-width: 20;
     height: 100%;
 }
 
@@ -74,7 +78,7 @@ HeaderWidget {
 
 #folder-tree {
     height: 1fr;
-    min-height: 8;
+    min-height: 6;
     border: none;
     background: #FFFFFF;
     color: #1A1A1A;
@@ -109,7 +113,7 @@ HeaderWidget {
 
 #storage-list, #personal-views-list, #system-list {
     height: auto;
-    max-height: 5;
+    max-height: 4;
     border: none;
     background: #FFFFFF;
     scrollbar-size: 0 0;
@@ -165,17 +169,20 @@ HeaderWidget {
     padding: 1 0;
     color: #1A1A1A;
     scrollbar-size: 0 0;
+    overflow-y: auto;
 }
 
 #storage-header {
     margin-top: 1;
     margin-bottom: 0;
     border-top: solid #FF8800;
+    color: #CC6600;
+    text-style: bold;
 }
 
 #storage-body {
     height: auto;
-    min-height: 7;
+    min-height: 6;
     padding: 0 0;
     color: #1A1A1A;
 }
