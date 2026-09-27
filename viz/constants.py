@@ -13,7 +13,7 @@ __version__ = "0.2.0"
 APP_NAME = "Viz"
 APP_TITLE = "VIZ // OFFLINE MEDIA TERMINAL"
 
-# Supported Video Extensions (Requirement #2)
+# Supported Video Extensions (Requirement #4)
 VIDEO_EXTENSIONS = {
     ".mp4",
     ".mkv",
@@ -27,9 +27,10 @@ VIDEO_EXTENSIONS = {
     ".m2ts",
     ".flv",
     ".wmv",
+    ".3gp",
 }
 
-# Supported Audio Extensions (Requirement #2)
+# Supported Audio Extensions (Requirement #4)
 AUDIO_EXTENSIONS = {
     ".mp3",
     ".wav",
@@ -40,9 +41,10 @@ AUDIO_EXTENSIONS = {
     ".aac",
     ".wma",
     ".aiff",
+    ".alac",
 }
 
-# Supported Image Extensions (Requirement #2)
+# Supported Image Extensions (Requirement #4)
 IMAGE_EXTENSIONS = {
     ".jpg",
     ".jpeg",
@@ -53,6 +55,9 @@ IMAGE_EXTENSIONS = {
     ".tiff",
     ".tif",
     ".svg",
+    ".avif",
+    ".heic",
+    ".heif",
 }
 
 SUPPORTED_EXTENSIONS = VIDEO_EXTENSIONS | AUDIO_EXTENSIONS | IMAGE_EXTENSIONS

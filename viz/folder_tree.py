@@ -173,21 +173,16 @@ class FolderTreeBuilder:
             if item not in current_node.media_files:
                 current_node.add_media(item)
 
-        # 4. Recalculate counts and prune empty subfolders
-        STANDARD_HOME_FOLDERS = {"Desktop", "Documents", "Downloads", "Music", "Pictures", "Videos"}
+        # 4. Recalculate counts and prune zero-media branches strictly
+        pruned_roots = []
         for root_node in roots:
             root_node.recalculate_counts()
-            if root_node.name == "Home":
-                pruned = []
-                for sf in root_node.subfolders:
-                    sf.prune_non_media_folders()
-                    if sf.name in STANDARD_HOME_FOLDERS or sf.total_media_count > 0 or sf.media_files:
-                        pruned.append(sf)
-                root_node.subfolders = pruned
-            else:
-                root_node.prune_non_media_folders()
+            root_node.prune_non_media_folders()
+            if root_node.total_media_count > 0 or root_node.media_files:
+                pruned_roots.append(root_node)
 
-        return roots
+        return pruned_roots
+
 
 
 

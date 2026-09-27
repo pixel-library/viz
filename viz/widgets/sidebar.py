@@ -96,15 +96,19 @@ class SidebarWidget(Widget):
     def _add_folder_to_tree(self, parent_node: TreeNode[Dict], folder: FolderNode) -> None:
         """Recursively add FolderNode and its MediaItems to Textual Tree using pixel terminal icons."""
         counts_parts = []
+        type_count = sum(1 for c in (folder.image_count, folder.video_count, folder.audio_count) if c > 0)
+        if type_count > 1:
+            counts_parts.append(f"M:{folder.total_media_count}")
+        if folder.image_count > 0:
+            counts_parts.append(f"I:{folder.image_count}")
         if folder.video_count > 0:
             counts_parts.append(f"V:{folder.video_count}")
         if folder.audio_count > 0:
             counts_parts.append(f"A:{folder.audio_count}")
-        if folder.image_count > 0:
-            counts_parts.append(f"I:{folder.image_count}")
 
         breakdown = " ".join(counts_parts) if counts_parts else str(folder.total_media_count)
         count_tag = f"[{breakdown}]" if folder.total_media_count > 0 else ""
+
 
         clean_name = folder.name.replace("🏠", "").replace("💾", "").replace("📁", "").strip()
 
