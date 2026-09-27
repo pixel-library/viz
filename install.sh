@@ -43,13 +43,13 @@ echo -e "${CYAN} Checking system media dependencies (libmpv)...${RESET}"
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     if command -v apt-get &> /dev/null; then
         echo -e "Detected Debian/Ubuntu system..."
-        sudo apt-get update -qq && sudo apt-get install -y -qq mpv libmpv-dev python3-pip python3-venv || true
+        sudo -n apt-get update -qq 2>/dev/null && sudo -n apt-get install -y -qq mpv libmpv-dev python3-pip python3-venv 2>/dev/null || true
     elif command -v pacman &> /dev/null; then
         echo -e "Detected Arch Linux system..."
-        sudo pacman -Sy --noconfirm mpv python-pip || true
+        sudo -n pacman -Sy --noconfirm mpv python-pip 2>/dev/null || true
     elif command -v dnf &> /dev/null; then
         echo -e "Detected Fedora system..."
-        sudo dnf install -y mpv mpv-devel python3-pip || true
+        sudo -n dnf install -y mpv mpv-devel python3-pip 2>/dev/null || true
     fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     if command -v brew &> /dev/null; then
@@ -62,18 +62,30 @@ fi
 
 # 3. Install Viz Python Package
 echo -e "${CYAN} Installing Viz Python Package via Pip...${RESET}"
-python3 -m pip install --upgrade --user git+https://github.com/pixel-library/viz.git
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" 2>/dev/null || echo ".")" && pwd)"
+if [ -f "$SCRIPT_DIR/pyproject.toml" ]; then
+    python3 -m pip install --upgrade --user "$SCRIPT_DIR"
+else
+    python3 -m pip install --upgrade --user git+https://github.com/pixel-library/viz.git
+fi
 
-# 4. Create robust launcher wrapper to prevent Conda library conflicts
+# Determine active Python interpreter to ensure launcher points to the correct environment
+PYTHON_EXEC=$(python3 -c "import sys; print(sys.executable)" 2>/dev/null || command -v python3 || echo "python3")
+
+# 4. Create robust launcher wrapper to prevent environment/path conflicts
 USER_BIN="$HOME/.local/bin"
 mkdir -p "$USER_BIN"
 
-cat << 'EOF' > "$USER_BIN/viz"
+cat << EOF > "$USER_BIN/viz"
 #!/usr/bin/env bash
-if command -v /usr/bin/python3 &> /dev/null; then
-    exec /usr/bin/python3 -m viz.cli "$@"
+if "$PYTHON_EXEC" -c "import viz.cli" &>/dev/null; then
+    exec "$PYTHON_EXEC" -m viz.cli "\$@"
+elif python3 -c "import viz.cli" &>/dev/null; then
+    exec python3 -m viz.cli "\$@"
+elif /usr/bin/python3 -c "import viz.cli" &>/dev/null; then
+    exec /usr/bin/python3 -m viz.cli "\$@"
 else
-    exec python3 -m viz.cli "$@"
+    exec python3 -m viz.cli "\$@"
 fi
 EOF
 chmod +x "$USER_BIN/viz"
@@ -83,7 +95,7 @@ if [ -n "$CONDA_PREFIX" ] && [ -d "$CONDA_PREFIX/bin" ]; then
     cp "$USER_BIN/viz" "$CONDA_PREFIX/bin/viz" 2>/dev/null || true
 fi
 
-sudo ln -sf "$USER_BIN/viz" /usr/local/bin/viz 2>/dev/null || true
+sudo -n ln -sf "$USER_BIN/viz" /usr/local/bin/viz 2>/dev/null || true
 
 if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
     echo -e "${YELLOW} Adding $USER_BIN to your PATH...${RESET}"
