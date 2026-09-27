@@ -21,15 +21,14 @@ from viz.models import MediaItem, MediaType
 from viz.widgets.player_status import PlayerStatusWidget
 
 
-class DetailsWidget(Widget):
+class DetailsWidget(Vertical):
     """Details panel rendering detailed metadata for highlighted files/folders + real storage information."""
 
     def compose(self) -> ComposeResult:
-        with Vertical(classes="column", id="details-column"):
-            yield Label("INFORMATION", classes="column-header", id="details-header")
-            yield Label("Select a file or folder\nto inspect details.", id="details-body")
-            yield Label("STORAGE", classes="section-header", id="storage-header")
-            yield Label("Loading storage...", id="storage-body")
+        yield Label("INFORMATION", classes="column-header", id="details-header")
+        yield Label("Select a file or folder\nto inspect details.", id="details-body")
+        yield Label("STORAGE", classes="section-header", id="storage-header")
+        yield Label("Loading storage...", id="storage-body")
 
     @staticmethod
     def _truncate_name(name: str, max_len: int = 22) -> str:

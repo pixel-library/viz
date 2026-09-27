@@ -108,9 +108,9 @@ class VizApp(App):
         yield HeaderWidget()
 
         with Horizontal(classes="main-box"):
-            yield SidebarWidget()
-            yield MediaListWidget()
-            yield DetailsWidget()
+            yield SidebarWidget(id="left-column")
+            yield MediaListWidget(id="center-column")
+            yield DetailsWidget(id="details-column")
 
         yield PlayerStatusWidget()
         yield ContextualFooter()

@@ -44,13 +44,12 @@ class MediaListItem(ListItem):
         self.item_type = "media"
 
 
-class MediaListWidget(Widget):
+class MediaListWidget(Vertical):
     """Main Content Media Browser displaying folders and classified media files."""
 
     def compose(self) -> ComposeResult:
-        with Vertical(classes="column", id="center-column"):
-            yield Label("CONTENT / MEDIA", classes="column-header", id="browse-header")
-            yield ListView(id="media-list")
+        yield Label("CONTENT / MEDIA", classes="column-header", id="browse-header")
+        yield ListView(id="media-list")
 
     def render_scanning(self) -> None:
         """Render scanning status state."""

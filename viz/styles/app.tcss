@@ -48,22 +48,25 @@ HeaderWidget {
 
 #left-column {
     width: 25%;
-    min-width: 20;
+    min-width: 22;
     height: 100%;
+    padding: 0 1;
     border-right: solid #FFE1B8;
 }
 
 #center-column {
     width: 50%;
-    min-width: 30;
+    min-width: 32;
     height: 100%;
+    padding: 0 1;
     border-right: solid #FFE1B8;
 }
 
 #details-column {
     width: 25%;
-    min-width: 20;
+    min-width: 22;
     height: 100%;
+    padding: 0 1;
 }
 
 .column-header {

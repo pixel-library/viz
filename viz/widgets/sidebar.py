@@ -19,7 +19,7 @@ from viz.library import LibraryManager
 from viz.mounts import MountsManager
 
 
-class SidebarWidget(Widget):
+class SidebarWidget(Vertical):
     """Sidebar widget featuring real filesystem tree (folders + files), mounted drives, and personal views."""
 
     PERSONAL_CATEGORIES: List[Tuple[str, str]] = [
@@ -35,24 +35,23 @@ class SidebarWidget(Widget):
     ]
 
     def compose(self) -> ComposeResult:
-        with Vertical(classes="column", id="left-column"):
-            yield Label("MEDIA FILESYSTEM", classes="column-header", id="tree-header")
-            tree: Tree[Dict] = Tree("LIBRARY ROOTS", id="folder-tree")
-            tree.show_root = False
-            yield tree
+        yield Label("MEDIA FILESYSTEM", classes="column-header", id="tree-header")
+        tree: Tree[Dict] = Tree("LIBRARY ROOTS", id="folder-tree")
+        tree.show_root = False
+        yield tree
 
-            yield Label("── STORAGE ──", classes="section-header")
-            yield ListView(id="storage-list")
+        yield Label("── STORAGE ──", classes="section-header")
+        yield ListView(id="storage-list")
 
-            yield Label("── PERSONAL ──", classes="section-header")
-            with ListView(id="personal-views-list"):
-                for cat_id, title in self.PERSONAL_CATEGORIES:
-                    yield ListItem(Label(f"  {title}"), id=f"cat-{cat_id}")
+        yield Label("── PERSONAL ──", classes="section-header")
+        with ListView(id="personal-views-list"):
+            for cat_id, title in self.PERSONAL_CATEGORIES:
+                yield ListItem(Label(f"  {title}"), id=f"cat-{cat_id}")
 
-            yield Label("── SYSTEM ──", classes="section-header")
-            with ListView(id="system-list"):
-                for cat_id, title in self.SYSTEM_CATEGORIES:
-                    yield ListItem(Label(f"  {title}"), id=f"sys-{cat_id}")
+        yield Label("── SYSTEM ──", classes="section-header")
+        with ListView(id="system-list"):
+            for cat_id, title in self.SYSTEM_CATEGORIES:
+                yield ListItem(Label(f"  {title}"), id=f"sys-{cat_id}")
 
     def update_tree_and_counts(self, library: LibraryManager) -> None:
         """Populate the filesystem Tree widget with real folders + media files, update drives and personal counts."""
