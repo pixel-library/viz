@@ -27,9 +27,9 @@ from viz.mounts import MountsManager
 from viz.queue import PlaybackQueue
 from viz.scanner import MediaScanner
 from viz.screens.help import HelpScreen
-from viz.screens.image_viewer import ImageViewerScreen
-from viz.screens.video_player import VideoPlayerScreen
-from viz.screens.audio_player import AudioPlayerScreen
+from viz.screens.image_environment import ImageEnvironment
+from viz.screens.video_environment import VideoEnvironment
+from viz.screens.audio_environment import AudioEnvironment
 from viz.screens.info import InfoScreen
 from viz.screens.library_paths import LibraryPathsScreen
 from viz.terminal import TerminalManager

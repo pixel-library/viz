@@ -1,20 +1,16 @@
 """
-Isolated Media Engine Abstraction with MPV IPC & Process Controller.
-Handles player lifecycle, real playback, seeking, volume, and event queries.
+Direct High-Performance Media Engine for Viz Terminal Media Center.
+Coordinates python-mpv native libmpv bindings and fallback subprocess rendering.
 
-Supports:
-- High-Performance MPV IPC Socket Subprocess (100% reliable across all Linux/C++ environments)
-- Native python-mpv fallback where available
-- Video: Native hardware-accelerated MPV window (vo=gpu / hwdec=auto)
-- Audio: High-fidelity audio playback without video window (vo=null, sound device enabled)
-- Images: Full-resolution native display mode (--image-display-duration=inf)
+Provides distinct playback modes for:
+- Video Virtual Environment: Hardware-accelerated GPU window (vo=gpu / hwdec=auto)
+- Audio Virtual Environment: High-fidelity audio playback without video window (vo=null)
+- Image Virtual Environment: High-resolution native display window (--image-display-duration=inf)
 """
 
 from __future__ import annotations
 
-import json
 import os
-import socket
 import subprocess
 import time
 from pathlib import Path
@@ -23,245 +19,254 @@ from typing import Callable, Optional
 from viz.models import MediaItem, MediaType, PlaybackState, PlaybackStatus
 from viz.terminal import TerminalCapabilities
 
-
-class MpvIpcController:
-    """UNIX Domain Socket IPC Controller for native MPV instance."""
-
-    def __init__(self) -> None:
-        self.sock_path = f"/tmp/viz_mpv_{os.getpid()}.sock"
-        self.proc: Optional[subprocess.Popen] = None
-        self.sock: Optional[socket.socket] = None
-        self.active_vo: str = "gpu"
-        self._req_id: int = 0
-
-    def ensure_started(self, vo: str = "gpu") -> bool:
-        """Start MPV background process with target video output if not already running."""
-        if self.proc and self.proc.poll() is None and self.active_vo == vo:
-            return True
-
-        self.stop()
-
-        if os.path.exists(self.sock_path):
-            try:
-                os.remove(self.sock_path)
-            except Exception:
-                pass
-
-        self.active_vo = vo
-        cmd = [
-            "mpv",
-            "--no-terminal",
-            "--idle=yes",
-            f"--input-ipc-server={self.sock_path}",
-            "--hwdec=auto",
-            f"--vo={vo}",
-            "--keep-open=yes",
-            "--volume=80",
-            "--title=Viz Media Center",
-        ]
-
-        try:
-            self.proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            for _ in range(20):
-                if os.path.exists(self.sock_path):
-                    break
-                time.sleep(0.05)
-
-            if not os.path.exists(self.sock_path):
-                return False
-
-            self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            self.sock.connect(self.sock_path)
-            self.sock.settimeout(0.3)
-            return True
-        except Exception:
-            self.stop()
-            return False
-
-    def send_cmd(self, command: list) -> Optional[dict]:
-        if not self.sock:
-            return None
-        self._req_id += 1
-        req_id = self._req_id
-        msg = json.dumps({"command": command, "request_id": req_id}) + "\n"
-        try:
-            self.sock.sendall(msg.encode("utf-8"))
-            return {"error": "success", "request_id": req_id}
-        except Exception:
-            return None
-
-    def query_property(self, name: str):
-        if not self.sock:
-            return None
-        self._req_id += 1
-        req_id = self._req_id
-        msg = json.dumps({"command": ["get_property", name], "request_id": req_id}) + "\n"
-        try:
-            self.sock.sendall(msg.encode("utf-8"))
-            buf = ""
-            for _ in range(5):
-                try:
-                    chunk = self.sock.recv(4096).decode("utf-8")
-                    if not chunk:
-                        break
-                    buf += chunk
-                    for line in buf.strip().split("\n"):
-                        if not line:
-                            continue
-                        try:
-                            parsed = json.loads(line)
-                            if parsed.get("request_id") == req_id:
-                                return parsed.get("data")
-                        except Exception:
-                            pass
-                except socket.timeout:
-                    break
-        except Exception:
-            pass
-        return None
-
-    def loadfile(self, path: str, start_pos: float = 0.0) -> bool:
-        if not self.send_cmd(["loadfile", path]):
-            return False
-        self.send_cmd(["set_property", "pause", False])
-        if start_pos > 0.0:
-            time.sleep(0.1)
-            self.send_cmd(["seek", start_pos, "absolute"])
-        return True
-
-    def toggle_pause(self) -> bool:
-        cur_pause = self.query_property("pause")
-        new_pause = not bool(cur_pause) if cur_pause is not None else False
-        self.send_cmd(["set_property", "pause", new_pause])
-        return new_pause
-
-    def toggle_mute(self) -> bool:
-        cur_mute = self.query_property("mute")
-        new_mute = not bool(cur_mute) if cur_mute is not None else True
-        self.send_cmd(["set_property", "mute", new_mute])
-        return new_mute
-
-    def set_volume(self, level: int) -> int:
-        clamped = max(0, min(100, level))
-        self.send_cmd(["set_property", "volume", clamped])
-        return clamped
-
-    def seek(self, seconds: float, relative: bool = True) -> float:
-        mode = "relative" if relative else "absolute"
-        self.send_cmd(["seek", seconds, mode])
-        time.sleep(0.05)
-        pos = self.query_property("time-pos")
-        try:
-            return float(pos) if pos is not None else 0.0
-        except (ValueError, TypeError):
-            return 0.0
-
-    def stop(self) -> None:
-        if self.sock:
-            try:
-                self.send_cmd(["stop"])
-                self.sock.close()
-            except Exception:
-                pass
-            self.sock = None
-        if self.proc and self.proc.poll() is None:
-            try:
-                self.proc.terminate()
-                self.proc.wait(timeout=1.0)
-            except Exception:
-                pass
-            self.proc = None
-        if os.path.exists(self.sock_path):
-            try:
-                os.remove(self.sock_path)
-            except Exception:
-                pass
+try:
+    import mpv
+    HAS_PYTHON_MPV = True
+except Exception:
+    HAS_PYTHON_MPV = False
 
 
 class MediaEngine:
     """
     Dedicated Media Engine for Viz.
-    Decouples MPV backend logic completely from UI widgets.
+    Manages player lifecycle, real playback, seeking, volume, and event state.
     """
 
     def __init__(self, initial_volume: int = 80, initial_muted: bool = False) -> None:
-        self.ipc = MpvIpcController()
+        self.player: Optional[object] = None
+        self.subprocess_proc: Optional[subprocess.Popen] = None
         self.is_available: bool = True
         self.error_message: Optional[str] = None
         self.state = PlaybackState(volume=initial_volume, is_muted=initial_muted)
         self.on_state_change_callback: Optional[Callable[[PlaybackState], None]] = None
-        self._image_process: Optional[subprocess.Popen] = None
+        self.active_media_type: Optional[MediaType] = None
 
     def play(self, media_item: MediaItem, start_position: float = 0.0) -> bool:
-        """Trigger actual media playback.
-
-        Video: Plays in hardware-accelerated MPV window (vo=gpu).
-        Audio: Plays with audio device enabled without video window (vo=null).
-        """
+        """Route to appropriate playback engine based on media type."""
         if not media_item or not media_item.path.exists():
             self.state.status = PlaybackStatus.ERROR
             self.state.error_message = f"File not found: {media_item.path if media_item else 'None'}"
             return False
 
+        if media_item.media_type == MediaType.VIDEO:
+            return self.play_video(media_item, start_position=start_position)
+        elif media_item.media_type == MediaType.AUDIO:
+            return self.play_audio(media_item, start_position=start_position)
+        elif media_item.media_type == MediaType.IMAGE:
+            return self.play_image(media_item)
+        return False
+
+    def play_video(self, media_item: MediaItem, start_position: float = 0.0) -> bool:
+        """Play video in hardware-accelerated native MPV window (vo=gpu / hwdec=auto)."""
+        self.stop()
         abs_path = str(media_item.path.resolve())
 
-        # Select video output
-        target_vo = "null" if media_item.media_type == MediaType.AUDIO else ("gpu" if TerminalCapabilities.has_display() else "null")
+        if HAS_PYTHON_MPV:
+            try:
+                self.player = mpv.MPV(
+                    force_window="yes",
+                    vo="gpu",
+                    hwdec="auto",
+                    keep_open="yes",
+                    title=f"Viz // {media_item.name}",
+                    volume=self.state.volume,
+                    mute=self.state.is_muted,
+                )
+                self.player.play(abs_path)
+                if start_position > 0.0:
+                    time.sleep(0.05)
+                    try:
+                        self.player.seek(start_position, "absolute")
+                    except Exception:
+                        pass
 
-        if not self.ipc.ensure_started(vo=target_vo):
+                self.active_media_type = MediaType.VIDEO
+                self.state.current_media = media_item
+                self.state.status = PlaybackStatus.PLAYING
+                self.state.position = start_position
+                self.sync_state()
+                return True
+            except Exception as err:
+                self.player = None
+
+        # Fallback to subprocess MPV instance
+        try:
+            cmd = [
+                "mpv",
+                "--force-window=yes",
+                "--vo=gpu",
+                "--hwdec=auto",
+                "--keep-open=yes",
+                f"--volume={self.state.volume}",
+                f"--title=Viz // {media_item.name}",
+            ]
+            if self.state.is_muted:
+                cmd.append("--mute=yes")
+            if start_position > 0.0:
+                cmd.append(f"--start={start_position}")
+            cmd.append(abs_path)
+
+            self.subprocess_proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            self.active_media_type = MediaType.VIDEO
+            self.state.current_media = media_item
+            self.state.status = PlaybackStatus.PLAYING
+            self.state.position = start_position
+            return True
+        except Exception as err:
             self.state.status = PlaybackStatus.ERROR
-            self.state.error_message = "Could not initialize MPV engine process."
+            self.state.error_message = f"Failed to start video player process: {err}"
             return False
 
-        if not self.ipc.loadfile(abs_path, start_pos=start_position):
+    def play_audio(self, media_item: MediaItem, start_position: float = 0.0) -> bool:
+        """Play audio using MPV engine without video window (vo=null)."""
+        self.stop()
+        abs_path = str(media_item.path.resolve())
+
+        if HAS_PYTHON_MPV:
+            try:
+                self.player = mpv.MPV(
+                    vo="null",
+                    video="no",
+                    title=f"Viz // {media_item.name}",
+                    volume=self.state.volume,
+                    mute=self.state.is_muted,
+                )
+                self.player.play(abs_path)
+                if start_position > 0.0:
+                    time.sleep(0.05)
+                    try:
+                        self.player.seek(start_position, "absolute")
+                    except Exception:
+                        pass
+
+                self.active_media_type = MediaType.AUDIO
+                self.state.current_media = media_item
+                self.state.status = PlaybackStatus.PLAYING
+                self.state.position = start_position
+                self.sync_state()
+                return True
+            except Exception:
+                self.player = None
+
+        # Fallback to subprocess MPV audio instance
+        try:
+            cmd = [
+                "mpv",
+                "--vo=null",
+                "--video=no",
+                f"--volume={self.state.volume}",
+                f"--title=Viz // {media_item.name}",
+            ]
+            if self.state.is_muted:
+                cmd.append("--mute=yes")
+            if start_position > 0.0:
+                cmd.append(f"--start={start_position}")
+            cmd.append(abs_path)
+
+            self.subprocess_proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            self.active_media_type = MediaType.AUDIO
+            self.state.current_media = media_item
+            self.state.status = PlaybackStatus.PLAYING
+            self.state.position = start_position
+            return True
+        except Exception as err:
             self.state.status = PlaybackStatus.ERROR
-            self.state.error_message = f"Failed to load file in MPV: {media_item.name}"
+            self.state.error_message = f"Failed to start audio player process: {err}"
             return False
 
-        self.state.current_media = media_item
-        self.state.status = PlaybackStatus.PLAYING
-        self.state.position = start_position
+    def play_image(self, media_item: MediaItem) -> bool:
+        """Render image in native high-resolution MPV window."""
+        self.stop()
+        if not media_item or not media_item.path.exists():
+            return False
 
-        self.ipc.set_volume(self.state.volume)
-        if self.state.is_muted:
-            self.ipc.send_cmd(["set_property", "mute", True])
+        abs_path = str(media_item.path.resolve())
 
-        self.sync_state()
-        return True
+        if HAS_PYTHON_MPV:
+            try:
+                self.player = mpv.MPV(
+                    force_window="yes",
+                    vo="gpu",
+                    image_display_duration="inf",
+                    keep_open="yes",
+                    loop_file="inf",
+                    title=f"Viz // {media_item.name}",
+                )
+                self.player.play(abs_path)
+                self.active_media_type = MediaType.IMAGE
+                self.state.current_media = media_item
+                self.state.status = PlaybackStatus.PLAYING
+                return True
+            except Exception:
+                self.player = None
+
+        # Fallback process
+        try:
+            cmd = [
+                "mpv",
+                "--image-display-duration=inf",
+                "--force-window=yes",
+                "--keep-open=yes",
+                "--loop-file=inf",
+                f"--title=Viz // {media_item.name}",
+                abs_path,
+            ]
+            self.subprocess_proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            self.active_media_type = MediaType.IMAGE
+            self.state.current_media = media_item
+            self.state.status = PlaybackStatus.PLAYING
+            return True
+        except Exception:
+            return False
 
     def sync_state(self) -> None:
-        """Poll properties from MPV IPC and update PlaybackState."""
-        if not self.ipc or not self.state.current_media:
+        """Query properties from player instance and update PlaybackState."""
+        if not self.player:
             return
 
-        pos = self.ipc.query_property("time-pos")
-        if pos is not None:
-            try:
+        try:
+            pos = getattr(self.player, "time_pos", None)
+            if pos is not None:
                 self.state.position = float(pos)
-            except (ValueError, TypeError):
-                pass
 
-        dur = self.ipc.query_property("duration")
-        if dur is not None:
-            try:
+            dur = getattr(self.player, "duration", None)
+            if dur is not None:
                 self.state.duration = float(dur)
-            except (ValueError, TypeError):
-                pass
 
-        pause = self.ipc.query_property("pause")
-        if pause is not None:
-            self.state.status = PlaybackStatus.PAUSED if pause else PlaybackStatus.PLAYING
+            pause = getattr(self.player, "pause", None)
+            if pause is not None:
+                self.state.status = PlaybackStatus.PAUSED if pause else PlaybackStatus.PLAYING
 
-        vol = self.ipc.query_property("volume")
-        if vol is not None:
-            try:
+            vol = getattr(self.player, "volume", None)
+            if vol is not None:
                 self.state.volume = int(vol)
-            except (ValueError, TypeError):
-                pass
 
-        mute = self.ipc.query_property("mute")
-        if mute is not None:
-            self.state.is_muted = bool(mute)
+            mute = getattr(self.player, "mute", None)
+            if mute is not None:
+                self.state.is_muted = bool(mute)
+
+            fs = getattr(self.player, "fs", None)
+            if fs is not None:
+                self.state.is_fullscreen = bool(fs)
+
+            eof = getattr(self.player, "eof_reached", False)
+            if eof:
+                self.state.status = PlaybackStatus.ENDED
+
+        except Exception:
+            pass
 
         if self.on_state_change_callback:
             try:
@@ -269,66 +274,92 @@ class MediaEngine:
             except Exception:
                 pass
 
-    def play_image(self, media_item: MediaItem) -> bool:
-        """Open image in a dedicated MPV process with native rendering."""
-        if not TerminalCapabilities.has_display() or not media_item.path.exists():
-            return False
-
-        self.stop()
-
-        try:
-            abs_path = str(media_item.path.resolve())
-            self._image_process = subprocess.Popen(
-                [
-                    "mpv",
-                    "--image-display-duration=inf",
-                    "--force-window=yes",
-                    f"--title=Viz // {media_item.name}",
-                    "--no-terminal",
-                    "--keep-open=yes",
-                    "--loop-file=inf",
-                    "--hwdec=auto",
-                    abs_path,
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            return True
-        except Exception:
-            return False
-
     def toggle_pause(self) -> bool:
-        new_pause = self.ipc.toggle_pause()
-        self.state.status = PlaybackStatus.PAUSED if new_pause else PlaybackStatus.PLAYING
-        return new_pause
+        if self.player:
+            try:
+                cur_pause = getattr(self.player, "pause", False)
+                new_pause = not bool(cur_pause)
+                self.player.pause = new_pause
+                self.state.status = PlaybackStatus.PAUSED if new_pause else PlaybackStatus.PLAYING
+                return new_pause
+            except Exception:
+                pass
+        return False
 
     def toggle_mute(self) -> bool:
-        new_mute = self.ipc.toggle_mute()
-        self.state.is_muted = new_mute
-        return new_mute
+        if self.player:
+            try:
+                cur_mute = getattr(self.player, "mute", False)
+                new_mute = not bool(cur_mute)
+                self.player.mute = new_mute
+                self.state.is_muted = new_mute
+                return new_mute
+            except Exception:
+                pass
+        self.state.is_muted = not self.state.is_muted
+        return self.state.is_muted
 
     def set_volume(self, level: int) -> int:
-        clamped = self.ipc.set_volume(level)
+        clamped = max(0, min(100, level))
         self.state.volume = clamped
+        if self.player:
+            try:
+                self.player.volume = clamped
+            except Exception:
+                pass
         return clamped
 
     def change_volume(self, delta: int) -> int:
         return self.set_volume(self.state.volume + delta)
 
     def seek(self, seconds: float, relative: bool = True) -> float:
-        pos = self.ipc.seek(seconds, relative=relative)
-        self.state.position = pos
-        return pos
-
-    def stop(self) -> None:
-        if self._image_process and self._image_process.poll() is None:
+        if self.player:
             try:
-                self._image_process.terminate()
+                mode = "relative" if relative else "absolute"
+                self.player.seek(seconds, mode)
+                time.sleep(0.02)
+                pos = getattr(self.player, "time_pos", 0.0)
+                if pos is not None:
+                    self.state.position = float(pos)
+                    return float(pos)
             except Exception:
                 pass
-            self._image_process = None
+        return self.state.position
 
-        self.ipc.stop()
+    def toggle_fullscreen(self) -> bool:
+        if self.player:
+            try:
+                cur_fs = getattr(self.player, "fs", False)
+                new_fs = not bool(cur_fs)
+                self.player.fs = new_fs
+                self.state.is_fullscreen = new_fs
+                return new_fs
+            except Exception:
+                pass
+        return False
+
+    def stop(self) -> None:
+        """Cleanly terminate playback and release player process/window resources."""
+        if self.player:
+            try:
+                self.player.stop()
+            except Exception:
+                pass
+            try:
+                self.player.terminate()
+            except Exception:
+                pass
+            self.player = None
+
+        if self.subprocess_proc and self.subprocess_proc.poll() is None:
+            try:
+                self.subprocess_proc.terminate()
+                self.subprocess_proc.wait(timeout=0.5)
+            except Exception:
+                pass
+            self.subprocess_proc = None
+
+        self.active_media_type = None
         self.state.status = PlaybackStatus.STOPPED
         self.state.position = 0.0
 

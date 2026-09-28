@@ -1,11 +1,11 @@
 """
 Centralized Media Router for Viz Terminal Media Center.
-Determines media type and routes to dedicated Virtual Environments.
+Determines media type and dispatches to dedicated Virtual Environments.
 
 Architecture:
-- Images → ImageViewerScreen (terminal preview + native MPV viewer)
-- Videos → VideoPlayerScreen (native MPV window + terminal controls)
-- Audio  → AudioPlayerScreen (MPV audio-only + terminal controls)
+- Images → ImageEnvironment (immediate native raster image viewer)
+- Videos → VideoEnvironment (hardware-accelerated GPU MPV window)
+- Audio  → AudioEnvironment (high-fidelity audio player without video window)
 """
 
 from __future__ import annotations
@@ -14,10 +14,10 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 from viz.models import MediaItem, MediaType
-from viz.screens.audio_player import AudioPlayerScreen
-from viz.screens.image_viewer import ImageViewerScreen
+from viz.screens.audio_environment import AudioEnvironment
+from viz.screens.image_environment import ImageEnvironment
 from viz.screens.info import InfoScreen
-from viz.screens.video_player import VideoPlayerScreen
+from viz.screens.video_environment import VideoEnvironment
 
 
 class MediaRouter:
@@ -46,7 +46,7 @@ class MediaRouter:
             folder_imgs = context_queue or cls._get_folder_media(app, MediaType.IMAGE)
             if item not in folder_imgs:
                 folder_imgs.insert(0, item)
-            app.push_screen(ImageViewerScreen(item, folder_imgs))
+            app.push_screen(ImageEnvironment(item, folder_imgs))
 
         elif item.media_type == MediaType.VIDEO:
             if hasattr(app, "last_selected_item"):
@@ -54,7 +54,7 @@ class MediaRouter:
             folder_vids = context_queue or cls._get_folder_media(app, MediaType.VIDEO)
             if item not in folder_vids:
                 folder_vids.insert(0, item)
-            app.push_screen(VideoPlayerScreen(item, folder_vids))
+            app.push_screen(VideoEnvironment(item, folder_vids))
 
         elif item.media_type == MediaType.AUDIO:
             if hasattr(app, "last_selected_item"):
@@ -62,7 +62,7 @@ class MediaRouter:
             folder_auds = context_queue or cls._get_folder_media(app, MediaType.AUDIO)
             if item not in folder_auds:
                 folder_auds.insert(0, item)
-            app.push_screen(AudioPlayerScreen(item, folder_auds))
+            app.push_screen(AudioEnvironment(item, folder_auds))
 
         else:
             app.push_screen(InfoScreen(item))

@@ -9,6 +9,9 @@ from textual.geometry import Size
 from viz.app import VizApp
 from viz.media_router import MediaRouter
 from viz.models import MediaItem, MediaType
+from viz.screens.image_environment import ImageEnvironment
+from viz.screens.video_environment import VideoEnvironment
+from viz.screens.audio_environment import AudioEnvironment
 from viz.screens.image_viewer import ImageViewerScreen
 from viz.screens.video_player import VideoPlayerScreen
 from viz.screens.audio_player import AudioPlayerScreen
@@ -28,7 +31,7 @@ def make_test_app() -> VizApp:
 
 @pytest.mark.anyio
 async def test_image_environment_direct_routing(tmp_path):
-    """Verify that opening an image routes directly to ImageViewerScreen without intermediate modals."""
+    """Verify that opening an image routes directly to ImageEnvironment without intermediate modals."""
     app = make_test_app()
     img_path = tmp_path / "photo.png"
     img_path.write_bytes(b"\x00" * 1024)
@@ -48,13 +51,14 @@ async def test_image_environment_direct_routing(tmp_path):
         await pilot.pause()
         assert len(app.screen_stack) == 2
         active_screen = app.screen_stack[-1]
+        assert isinstance(active_screen, ImageEnvironment)
         assert isinstance(active_screen, ImageViewerScreen)
         assert active_screen.current_item.name == "photo.png"
 
 
 @pytest.mark.anyio
 async def test_video_environment_routing(tmp_path):
-    """Verify that opening a video routes directly to VideoPlayerScreen."""
+    """Verify that opening a video routes directly to VideoEnvironment."""
     app = make_test_app()
     vid_path = tmp_path / "movie.mp4"
     vid_path.write_bytes(b"\x00" * 1024)
@@ -74,13 +78,14 @@ async def test_video_environment_routing(tmp_path):
         await pilot.pause()
         assert len(app.screen_stack) == 2
         active_screen = app.screen_stack[-1]
+        assert isinstance(active_screen, VideoEnvironment)
         assert isinstance(active_screen, VideoPlayerScreen)
         assert active_screen.current_item.name == "movie.mp4"
 
 
 @pytest.mark.anyio
 async def test_audio_environment_routing(tmp_path):
-    """Verify that opening an audio track routes directly to AudioPlayerScreen."""
+    """Verify that opening an audio track routes directly to AudioEnvironment."""
     app = make_test_app()
     aud_path = tmp_path / "song.mp3"
     aud_path.write_bytes(b"\x00" * 1024)
@@ -100,6 +105,7 @@ async def test_audio_environment_routing(tmp_path):
         await pilot.pause()
         assert len(app.screen_stack) == 2
         active_screen = app.screen_stack[-1]
+        assert isinstance(active_screen, AudioEnvironment)
         assert isinstance(active_screen, AudioPlayerScreen)
         assert active_screen.current_item.name == "song.mp3"
 
