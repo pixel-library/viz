@@ -71,12 +71,15 @@ class MediaItem:
     season_num: Optional[int] = None
     episode_num: Optional[int] = None
     episode_title: Optional[str] = None
+    video_width: int = 0
+    video_height: int = 0
 
     # Music Metadata
     artist: Optional[str] = None
     album: Optional[str] = None
     track_num: Optional[int] = None
     title: Optional[str] = None
+    bitrate: int = 0
 
     # Image Metadata
     image_width: int = 0

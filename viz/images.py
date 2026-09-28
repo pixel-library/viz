@@ -1,14 +1,11 @@
 """
 Terminal Image Renderer Pipeline for Viz Media Center.
 
-Implements a multi-strategy rendering pipeline:
-1. Kitty Graphics Protocol  — full-resolution raster via escape sequences (best quality)
-2. Sixel Graphics           — raster image protocol for compatible terminals
-3. High-quality Truecolor Half-Block (▀) — best-in-class terminal character rendering
-4. Text Fallback            — filename display for minimal terminals
+Implements direct raster pixel rendering:
+1. Kitty Graphics Protocol  — full-resolution raster via escape sequences on compatible terminals
+2. Native MPV Image Window — high-resolution hardware-accelerated raster window for Linux desktops
 
 All renderers preserve original source files without modification.
-Memory-safe: uses streaming PIL reads, never loads full decoded pixels into a list.
 """
 
 from __future__ import annotations
@@ -40,11 +37,7 @@ class ImageRenderer(ABC):
 
 
 class KittyRenderer(ImageRenderer):
-    """Kitty Graphics Protocol renderer — sends real raster pixels via escape sequences.
-
-    Uses the Kitty graphics protocol (APC sequences) to transmit PNG data directly
-    to the terminal, which then renders it natively at full resolution.
-    """
+    """Kitty Graphics Protocol renderer — sends real raster pixels via escape sequences."""
 
     def render(
         self,
@@ -64,17 +57,10 @@ class KittyRenderer(ImageRenderer):
                 img = img.convert("RGBA")
                 orig_w, orig_h = img.size
 
-                # Calculate target pixel dimensions based on terminal cell size
-                # Typical terminal cell is ~8px wide, ~16px tall
                 cell_w, cell_h = 8, 16
-                target_px_w = max_w * cell_w
-                target_px_h = max_h * cell_h
+                target_px_w = int(max_w * cell_w * zoom)
+                target_px_h = int(max_h * cell_h * zoom)
 
-                # Apply zoom
-                target_px_w = int(target_px_w * zoom)
-                target_px_h = int(target_px_h * zoom)
-
-                # Maintain aspect ratio
                 aspect = orig_w / max(1, orig_h)
                 fit_w = target_px_w
                 fit_h = int(fit_w / aspect)
@@ -87,22 +73,17 @@ class KittyRenderer(ImageRenderer):
 
                 resized = img.resize((fit_w, fit_h), Image.Resampling.LANCZOS)
 
-                # Encode to PNG in memory
                 buf = io.BytesIO()
                 resized.save(buf, format="PNG", optimize=True)
                 png_data = buf.getvalue()
 
-                # Build Kitty graphics escape sequence
                 b64_data = base64.standard_b64encode(png_data).decode("ascii")
-
-                # Split into 4096-byte chunks as per Kitty protocol
                 chunks = [b64_data[i:i + 4096] for i in range(0, len(b64_data), 4096)]
                 escape_parts = []
                 for idx, chunk in enumerate(chunks):
                     is_last = idx == len(chunks) - 1
                     more = 0 if is_last else 1
                     if idx == 0:
-                        # First chunk: specify format, transmission, display params
                         escape_parts.append(
                             f"\033_Ga=T,f=100,t=d,m={more},c={max_w},r={max_h};{chunk}\033\\"
                         )
@@ -112,7 +93,7 @@ class KittyRenderer(ImageRenderer):
                 return "".join(escape_parts)
 
         except Exception:
-            return NativeFrameRenderer().render(path, max_w=max_w, max_h=max_h, rotation=rotation, zoom=zoom)
+            return ""
 
 
 class NativeFrameRenderer(ImageRenderer):
@@ -129,29 +110,13 @@ class NativeFrameRenderer(ImageRenderer):
         return ""
 
 
-class TextFallbackRenderer(ImageRenderer):
-    """Fallback renderer for minimal environments."""
-
-    def render(
-        self,
-        path: Path,
-        max_w: int = 70,
-        max_h: int = 22,
-        rotation: int = 0,
-        zoom: float = 1.0,
-    ) -> str:
-        return ""
-
-
 class ImageHelper:
-    """Helper facade delegating to the best terminal-capability-aware image renderer."""
+    """Helper facade delegating to terminal-capability-aware image renderers."""
 
     @classmethod
     def get_renderer(cls) -> ImageRenderer:
         """Select best available renderer based on terminal capability detection."""
-        method = TerminalCapabilities.best_image_method()
-
-        if method == "kitty":
+        if TerminalCapabilities.has_kitty_graphics():
             return KittyRenderer()
         return NativeFrameRenderer()
 
@@ -175,7 +140,7 @@ class ImageHelper:
         rotation: int = 0,
         zoom: float = 1.0,
     ) -> str:
-        """Generate high-quality terminal preview using auto-selected renderer."""
+        """Generate high-quality raster preview if terminal supports Kitty graphics."""
         renderer = cls.get_renderer()
         return renderer.render(path, max_w=max_w, max_h=max_h, rotation=rotation, zoom=zoom)
 
@@ -195,15 +160,7 @@ class ImageHelper:
 
     @classmethod
     def open_native_viewer(cls, path: Path) -> bool:
-        """Open image in a native viewer window (for X11/Wayland environments).
-
-        Uses MPV or system image viewer to display the image at full native resolution
-        in its own window, completely bypassing terminal character rendering.
-        Returns True if successfully launched.
-        """
-        if not TerminalCapabilities.has_display():
-            return False
-
+        """Open image in a high-resolution native MPV window (for desktop environments)."""
         if not path.exists():
             return False
 
@@ -214,34 +171,22 @@ class ImageHelper:
                 pass
 
         try:
-            # Try mpv for image viewing (supports all common formats)
             cls._active_proc = subprocess.Popen(
                 [
                     "mpv",
                     "--image-display-duration=inf",
-                    "--force-window=yes",
-                    "--title=Viz Image Viewer",
-                    "--no-terminal",
-                    "--keep-open=yes",
                     "--loop-file=inf",
+                    "--force-window=yes",
+                    "--vo=gpu,gpu-next,auto",
+                    "--title=Viz Image Viewer",
                     str(path.resolve()),
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
             return True
-        except FileNotFoundError:
-            pass
-
-        # Fallback to xdg-open
-        try:
-            subprocess.Popen(
-                ["xdg-open", str(path.resolve())],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            return True
-        except FileNotFoundError:
+        except Exception:
             pass
 
         return False
+

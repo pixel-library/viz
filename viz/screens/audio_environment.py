@@ -81,7 +81,7 @@ class AudioEnvironment(ModalScreen):
 
     def on_mount(self) -> None:
         self.start_playback()
-        self.set_interval(0.25, self.update_display)
+        self.set_interval(0.2, self.update_display)
 
     def start_playback(self) -> None:
         if 0 <= self.current_index < len(self.playlist):
@@ -117,6 +117,8 @@ class AudioEnvironment(ModalScreen):
         ext_str = self.current_item.extension.upper().lstrip(".")
         track_tag = f"Track {self.current_item.track_num}" if self.current_item.track_num else f"Track {self.current_index + 1}"
 
+        status_text = "PLAYING" if state.status == PlaybackStatus.PLAYING else ("PAUSED" if state.status == PlaybackStatus.PAUSED else "STOPPED")
+        self.query_one("#audio-sub-label", Label).update(f"... {status_text}")
         self.query_one("#audio-track-title", Label).update(f"[bold white]{title_str}[/bold white]")
         self.query_one("#audio-artist-name", Label).update(f"[bold #b0b8c4]{artist_str}[/bold #b0b8c4]")
         self.query_one("#audio-album-name", Label).update(f"[dim #808a9d]{album_str}[/dim #808a9d]")
@@ -146,7 +148,7 @@ class AudioEnvironment(ModalScreen):
         scrubber = "━" * filled + "●" + "─" * max(0, bar_len - filled - 1)
         self.query_one("#audio-scrubber-line", Label).update(f" {scrubber} ")
 
-        status_icon = "⏸" if state.status == PlaybackStatus.PLAYING else ("▶" if state.status == PlaybackStatus.PAUSED else "■")
+        status_icon = "▶" if state.status == PlaybackStatus.PLAYING else ("⏸" if state.status == PlaybackStatus.PAUSED else "■")
         self.query_one("#audio-center-controls", Label).update(f"  ⏮ [B]   ( {status_icon} ) [SPACE]   ⏭ [N]  ")
 
         vol_str = "Muted" if state.is_muted else f"{state.volume}%"
@@ -218,3 +220,4 @@ class AudioEnvironment(ModalScreen):
             self.app.update_ui_views()
 
         self.dismiss()
+

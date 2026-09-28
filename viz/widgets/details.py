@@ -126,6 +126,9 @@ class DetailsWidget(Vertical):
 
         header.update("INFORMATION")
 
+        from viz.metadata import MetadataExtractor
+        item = MetadataExtractor.enrich_metadata(item)
+
         size_mb = item.file_size / (1024 * 1024)
         size_str = f"{size_mb / 1024:.2f} GB" if size_mb >= 1024 else f"{size_mb:.1f} MB"
         if size_mb < 1.0:
@@ -137,10 +140,10 @@ class DetailsWidget(Vertical):
         loc_str = self._truncate_path(item.path.parent, 22)
 
         if item.media_type == MediaType.VIDEO:
-            dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else "Unknown"
-            dim_str = f"{item.video_width} × {item.video_height}" if item.video_width > 0 else "Unknown"
+            dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else "N/A"
+            dim_str = f"{item.video_width} × {item.video_height}" if item.video_width > 0 else "N/A"
             px_count = item.video_width * item.video_height if item.video_width > 0 else 0
-            px_str = f"{px_count:,}" if px_count > 0 else "Unknown"
+            px_str = f"{px_count:,}" if px_count > 0 else "N/A"
 
             text = (
                 f"[bold orange]{item_name}[/bold orange]{fav_str}\n\n"
@@ -155,9 +158,9 @@ class DetailsWidget(Vertical):
             )
 
         elif item.media_type == MediaType.AUDIO:
-            dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else "Unknown"
-            artist_str = self._truncate_name(item.artist, 14) if item.artist else "Unknown Artist"
-            album_str = self._truncate_name(item.album, 14) if item.album else "Unknown Album"
+            dur_str = PlayerStatusWidget.format_time(item.duration) if item.duration > 0 else "N/A"
+            artist_str = self._truncate_name(item.artist, 14) if item.artist else "N/A"
+            album_str = self._truncate_name(item.album, 14) if item.album else "N/A"
 
             text = (
                 f"[bold orange]{item_name}[/bold orange]{fav_str}\n\n"
@@ -172,10 +175,10 @@ class DetailsWidget(Vertical):
             )
 
         elif item.media_type == MediaType.IMAGE:
-            dim_str = f"{item.image_width} × {item.image_height}" if item.image_width > 0 else "Unknown"
+            dim_str = f"{item.image_width} × {item.image_height}" if item.image_width > 0 else "N/A"
             fmt_str = item.image_format or item.extension.upper().lstrip('.')
             px_count = item.image_width * item.image_height if item.image_width > 0 else 0
-            px_str = f"{px_count:,}" if px_count > 0 else "Unknown"
+            px_str = f"{px_count:,}" if px_count > 0 else "N/A"
 
             text = (
                 f"[bold orange]{item_name}[/bold orange]{fav_str}\n\n"

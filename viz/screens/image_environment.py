@@ -18,6 +18,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Footer, Label
 
 from viz.images import ImageHelper
+from viz.metadata import MetadataExtractor
 from viz.models import MediaItem
 from viz.terminal import TerminalCapabilities
 
@@ -42,7 +43,7 @@ class ImageEnvironment(ModalScreen):
 
     def __init__(self, current_item: MediaItem, folder_images: Optional[List[MediaItem]] = None) -> None:
         super().__init__()
-        self.current_item = current_item
+        self.current_item = MetadataExtractor.enrich_metadata(current_item)
         self.folder_images = folder_images or [current_item]
         self.current_index = self.folder_images.index(current_item) if current_item in self.folder_images else 0
         self.zoom_level: float = 1.0
@@ -64,10 +65,10 @@ class ImageEnvironment(ModalScreen):
         self.update_display()
 
     def render_image_media(self) -> None:
-        """Render image media immediately using native MPV raster window or raster protocol."""
+        """Render image media immediately using native MPV raster window or Kitty protocol."""
         if not (0 <= self.current_index < len(self.folder_images)):
             return
-        item = self.folder_images[self.current_index]
+        item = MetadataExtractor.enrich_metadata(self.folder_images[self.current_index])
         self.current_item = item
 
         if hasattr(self.app, "last_selected_item"):
@@ -77,7 +78,6 @@ class ImageEnvironment(ModalScreen):
             if self.app.engine.play_image(item):
                 return
 
-        # Fallback to native open
         ImageHelper.open_native_viewer(item.path)
 
     def update_display(self) -> None:
@@ -94,7 +94,7 @@ class ImageEnvironment(ModalScreen):
 
         size_mb = item.file_size / (1024 * 1024)
         size_str = f"{size_mb:.2f} MB" if size_mb >= 1.0 else f"{int(item.file_size / 1024)} KB"
-        dim_str = f"{item.image_width} × {item.image_height}" if item.image_width > 0 else "Full Resolution"
+        dim_str = f"{item.image_width} × {item.image_height}" if item.image_width > 0 else "Native Resolution"
         fmt_str = item.image_format or item.extension.upper().lstrip(".")
         zoom_str = f"{int(self.zoom_level * 100)}%"
         rot_str = f"{self.rotation_angle}°"
@@ -114,7 +114,6 @@ class ImageEnvironment(ModalScreen):
 
         viewport = self.query_one("#image-viewport", Label)
 
-        # High quality raster protocol if supported
         term_w = getattr(self.app.size, "width", 80)
         term_h = getattr(self.app.size, "height", 24)
         max_w = max(30, term_w - 6)
@@ -131,7 +130,7 @@ class ImageEnvironment(ModalScreen):
         if rgb_art:
             viewport.update(rgb_art)
         else:
-            viewport.update("\n\n\n   [ REAL RASTER IMAGE DISPLAYED IN NATIVE WINDOW ]   \n\n\n")
+            viewport.update("")
 
     def action_prev_image(self) -> None:
         if len(self.folder_images) > 1:
@@ -174,3 +173,4 @@ class ImageEnvironment(ModalScreen):
             self.app.update_ui_views()
 
         self.dismiss()
+

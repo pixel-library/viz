@@ -14,6 +14,7 @@ from textual.containers import Container, Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Footer, Label
 
+from viz.metadata import MetadataExtractor
 from viz.models import MediaItem, PlaybackState, PlaybackStatus
 from viz.widgets.player_status import PlayerStatusWidget
 
@@ -39,7 +40,7 @@ class VideoEnvironment(ModalScreen):
 
     def __init__(self, current_item: MediaItem, queue_items: Optional[List[MediaItem]] = None) -> None:
         super().__init__()
-        self.current_item = current_item
+        self.current_item = MetadataExtractor.enrich_metadata(current_item)
         self.queue_items = queue_items or [current_item]
         self.current_index = self.queue_items.index(current_item) if current_item in self.queue_items else 0
 
@@ -64,11 +65,11 @@ class VideoEnvironment(ModalScreen):
 
     def on_mount(self) -> None:
         self.start_playback()
-        self.set_interval(0.25, self.update_display)
+        self.set_interval(0.2, self.update_display)
 
     def start_playback(self) -> None:
         if 0 <= self.current_index < len(self.queue_items):
-            self.current_item = self.queue_items[self.current_index]
+            self.current_item = MetadataExtractor.enrich_metadata(self.queue_items[self.current_index])
             if hasattr(self.app, "last_selected_item"):
                 self.app.last_selected_item = self.current_item
             if hasattr(self.app, "engine"):
@@ -109,35 +110,28 @@ class VideoEnvironment(ModalScreen):
         scrubber = "━" * filled + "●" + "─" * max(0, bar_len - filled - 1)
         self.query_one("#video-scrubber-line", Label).update(f" {scrubber} ")
 
-        status_icon = "⏸" if state.status == PlaybackStatus.PLAYING else ("▶" if state.status == PlaybackStatus.PAUSED else "■")
+        status_icon = "▶" if state.status == PlaybackStatus.PLAYING else ("⏸" if state.status == PlaybackStatus.PAUSED else "■")
         self.query_one("#video-center-controls", Label).update(f"  ⏮   ( {status_icon} )   ⏭  ")
 
         ext_str = self.current_item.extension.upper().lstrip(".")
-        res_str = f"{self.current_item.image_width}x{self.current_item.image_height}" if self.current_item.image_width > 0 else "1080p"
+        res_str = f"{self.current_item.video_width}x{self.current_item.video_height}" if self.current_item.video_width > 0 else "Full Native"
         self.query_one("#video-fmt-tag", Label).update(f"{ext_str} • {res_str}")
 
         vol_str = "Muted" if state.is_muted else f"{state.volume}%"
-        self.query_one("#video-right-status", Label).update(f"🔊 {vol_str}   ⚙ GPU   ⛶ [F]   [ESC] Back")
+        fs_str = "⛶ [F] Fullscreen" if not state.is_fullscreen else "⛶ [F] Windowed"
+        self.query_one("#video-right-status", Label).update(f"🔊 {vol_str}   ⚙ GPU   {fs_str}   [ESC] Back")
 
         viewport = self.query_one("#video-viewport", Label)
         status_text = "PLAYING" if state.status == PlaybackStatus.PLAYING else ("PAUSED" if state.status == PlaybackStatus.PAUSED else "STOPPED")
 
-        card_content = (
-            "\n\n\n"
-            "   ┌────────────────────────────────────────────────────────────────────────┐\n"
-            "   │                    [ VIDEO VIRTUAL ENVIRONMENT ]                       │\n"
-            "   │                                                                        │\n"
-            f"   │     STATUS:     [bold orange]{status_icon} {status_text:<12}[/bold orange]                               │\n"
-            f"   │     TITLE:      [bold white]{self.current_item.name[:45]:<45}[/bold white]  │\n"
-            f"   │     FORMAT:     {ext_str:<8}  RESOLUTION: {res_str:<12}                │\n"
-            "   │     DECODER:    Native MPV Hardware Acceleration (vo=gpu)              │\n"
-            "   │                                                                        │\n"
-            "   │     [ Real Video Pixels Active in Hardware Accelerated Window ]        │\n"
-            "   │                                                                        │\n"
-            "   │     [ SPACE Play/Pause • ←/→ Seek • ↑/↓ Vol • N/B Track • F Fullscreen ]│\n"
-            "   └────────────────────────────────────────────────────────────────────────┘\n"
+        status_banner = (
+            "\n\n"
+            f"                     [bold orange]{status_icon}  {status_text}[/bold orange]\n"
+            f"        [bold white]{self.current_item.name}[/bold white]\n"
+            f"        Format: {ext_str}   Resolution: {res_str}   Decoder: GPU (vo=gpu)\n"
+            "        [ Real-time Video Window Active • Press ESC to Exit ]\n"
         )
-        viewport.update(card_content)
+        viewport.update(status_banner)
 
     def action_toggle_play_pause(self) -> None:
         if hasattr(self.app, "engine"):
@@ -204,3 +198,4 @@ class VideoEnvironment(ModalScreen):
             self.app.update_ui_views()
 
         self.dismiss()
+
