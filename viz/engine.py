@@ -3,7 +3,7 @@ Direct High-Performance Media Engine for Viz Terminal Media Center.
 Coordinates python-mpv native libmpv bindings and fallback subprocess rendering.
 
 Provides distinct playback modes for:
-- Video Virtual Environment: Hardware-accelerated GPU window (vo=gpu / hwdec=auto)
+- Video Virtual Environment: Hardware-accelerated GPU window (vo=gpu / gpu_context=wayland,x11egl,auto)
 - Audio Virtual Environment: High-fidelity audio playback without video window (vo=null)
 - Image Virtual Environment: High-resolution native display window (--image-display-duration=inf)
 """
@@ -57,7 +57,7 @@ class MediaEngine:
         return False
 
     def play_video(self, media_item: MediaItem, start_position: float = 0.0) -> bool:
-        """Play video in hardware-accelerated native MPV window (vo=gpu / hwdec=auto)."""
+        """Play video in hardware-accelerated native MPV window (vo=gpu / gpu_context=wayland,x11egl,auto)."""
         self.stop()
         abs_path = str(media_item.path.resolve())
 
@@ -66,6 +66,7 @@ class MediaEngine:
                 self.player = mpv.MPV(
                     force_window="yes",
                     vo="gpu",
+                    gpu_context="wayland,x11egl,auto",
                     hwdec="auto",
                     keep_open="yes",
                     title=f"Viz // {media_item.name}",
@@ -86,8 +87,25 @@ class MediaEngine:
                 self.state.position = start_position
                 self.sync_state()
                 return True
-            except Exception as err:
-                self.player = None
+            except Exception:
+                try:
+                    # Fallback python-mpv without explicit gpu_context
+                    self.player = mpv.MPV(
+                        force_window="yes",
+                        vo="gpu",
+                        hwdec="auto",
+                        keep_open="yes",
+                        title=f"Viz // {media_item.name}",
+                        volume=self.state.volume,
+                        mute=self.state.is_muted,
+                    )
+                    self.player.play(abs_path)
+                    self.active_media_type = MediaType.VIDEO
+                    self.state.current_media = media_item
+                    self.state.status = PlaybackStatus.PLAYING
+                    return True
+                except Exception:
+                    self.player = None
 
         # Fallback to subprocess MPV instance
         try:
@@ -95,6 +113,7 @@ class MediaEngine:
                 "mpv",
                 "--force-window=yes",
                 "--vo=gpu",
+                "--gpu-context=wayland,x11egl,auto",
                 "--hwdec=auto",
                 "--keep-open=yes",
                 f"--volume={self.state.volume}",
@@ -195,6 +214,7 @@ class MediaEngine:
                 self.player = mpv.MPV(
                     force_window="yes",
                     vo="gpu",
+                    gpu_context="wayland,x11egl,auto",
                     image_display_duration="inf",
                     keep_open="yes",
                     loop_file="inf",
@@ -206,7 +226,22 @@ class MediaEngine:
                 self.state.status = PlaybackStatus.PLAYING
                 return True
             except Exception:
-                self.player = None
+                try:
+                    self.player = mpv.MPV(
+                        force_window="yes",
+                        vo="gpu",
+                        image_display_duration="inf",
+                        keep_open="yes",
+                        loop_file="inf",
+                        title=f"Viz // {media_item.name}",
+                    )
+                    self.player.play(abs_path)
+                    self.active_media_type = MediaType.IMAGE
+                    self.state.current_media = media_item
+                    self.state.status = PlaybackStatus.PLAYING
+                    return True
+                except Exception:
+                    self.player = None
 
         # Fallback process
         try:
@@ -214,6 +249,8 @@ class MediaEngine:
                 "mpv",
                 "--image-display-duration=inf",
                 "--force-window=yes",
+                "--vo=gpu",
+                "--gpu-context=wayland,x11egl,auto",
                 "--keep-open=yes",
                 "--loop-file=inf",
                 f"--title=Viz // {media_item.name}",

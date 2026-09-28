@@ -40,6 +40,13 @@ class MediaRouter:
         else:
             item = item_or_path
 
+        # Guard against duplicate environment mounts on rapid or duplicate Enter keypress
+        if len(app.screen_stack) > 1 and type(app.screen_stack[-1]).__name__ in (
+            "ImageEnvironment", "VideoEnvironment", "AudioEnvironment",
+            "ImageViewerScreen", "VideoPlayerScreen", "AudioPlayerScreen"
+        ):
+            return
+
         if item.media_type == MediaType.IMAGE:
             if hasattr(app, "last_selected_item"):
                 app.last_selected_item = item

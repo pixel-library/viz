@@ -131,21 +131,7 @@ class ImageEnvironment(ModalScreen):
         if rgb_art:
             viewport.update(rgb_art)
         else:
-            card_content = (
-                "\n\n\n"
-                "   ┌────────────────────────────────────────────────────────────────────────┐\n"
-                "   │                    [ IMAGE VIRTUAL ENVIRONMENT ]                       │\n"
-                "   │                                                                        │\n"
-                f"   │     FILENAME:      [bold white]{item.name[:48]:<48}[/bold white]│\n"
-                f"   │     FORMAT:        {fmt_str:<8}  DIMENSIONS: {dim_str:<14}            │\n"
-                f"   │     FILE SIZE:     {size_str:<12}                                           │\n"
-                "   │                                                                        │\n"
-                "   │     [ Real Raster Pixels Rendered in Dedicated Window ]                │\n"
-                "   │                                                                        │\n"
-                "   │     [ ←/→ Prev/Next  •  +/- Zoom  •  R Rotate  •  ESC Back ]           │\n"
-                "   └────────────────────────────────────────────────────────────────────────┘\n"
-            )
-            viewport.update(card_content)
+            viewport.update("\n\n\n   [ REAL RASTER IMAGE DISPLAYED IN NATIVE WINDOW ]   \n\n\n")
 
     def action_prev_image(self) -> None:
         if len(self.folder_images) > 1:
