@@ -128,8 +128,8 @@ class VideoEnvironment(ModalScreen):
             "\n\n"
             f"                     [bold orange]{status_icon}  {status_text}[/bold orange]\n"
             f"        [bold white]{self.current_item.name}[/bold white]\n"
-            f"        Format: {ext_str}   Resolution: {res_str}   Decoder: GPU (vo=gpu)\n"
-            "        [ Real-time Video Window Active • Press ESC to Exit ]\n"
+            f"        Format: {ext_str}   Resolution: {res_str}   Output: MPV Kitty Graphics (vo=kitty)\n"
+            "        [ Real-time Terminal Video Active • Press ESC to Exit ]\n"
         )
         viewport.update(status_banner)
 

@@ -10,8 +10,9 @@ build/
 dist/
 
 # Local media test files
-Media/
-media/
+/Media/
+/media/
+!viz/media/
 *.mp4
 *.mkv
 *.mp3
